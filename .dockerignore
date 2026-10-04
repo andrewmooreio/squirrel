@@ -1,0 +1,7 @@
+.git
+bin
+tmp
+*.db
+*.db-shm
+*.db-wal
+internal/web/static/app.css
