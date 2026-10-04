@@ -1,11 +1,19 @@
 name: CI
 
+# Branches are tested through their pull request. Pushes to main are tested
+# after a merge.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
+
+# Cancel a run when a newer commit arrives on the same branch or PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
