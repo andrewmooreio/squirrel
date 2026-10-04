@@ -1,0 +1,194 @@
+package views
+
+import "github.com/andrewmooreio/squirrel/internal/store"
+
+// ItemFormData is the add and edit form.
+type ItemFormData struct {
+	// ID is 0 for a new item.
+	ID         int64
+	Name       string
+	Count      int
+	CategoryID int64
+	LocationID int64
+	StoreID    int64
+	Notes      string
+	Categories []store.ListValue
+	Locations  []store.ListValue
+	Stores     []store.ListValue
+	// Errors maps a field name to its message.
+	Errors map[string]string
+}
+
+templ ItemForm(p Page, d ItemFormData) {
+	@Layout(p) {
+		<div class="mx-auto grid max-w-xl gap-4">
+			<h1 class="text-xl font-semibold">
+				if d.ID == 0 {
+					Add item
+				} else {
+					Edit item
+				}
+			</h1>
+			<form method="post" action={ templ.SafeURL(formAction(d.ID)) } class="form grid gap-5">
+				if msg := d.Errors["form"]; msg != "" {
+					<p class="text-sm text-destructive" role="alert">{ msg }</p>
+				}
+				@textField("name", "Name", d.Name, d.Errors["name"], true)
+				if d.ID == 0 {
+					<div class="field">
+						<label for="count" class="label">Starting count</label>
+						<input id="count" name="count" type="number" min="0" step="1" inputmode="numeric" value={ itoa(d.Count) } class="input h-11"/>
+						if msg := d.Errors["count"]; msg != "" {
+							<p class="text-sm text-destructive">{ msg }</p>
+						}
+					</div>
+				}
+				@selectField("category_id", "Category", d.CategoryID, d.Categories, d.Errors["category"])
+				@selectField("location_id", "Location", d.LocationID, d.Locations, d.Errors["location"])
+				@selectField("store_id", "Store", d.StoreID, d.Stores, d.Errors["store"])
+				<div class="field">
+					<label for="notes" class="label">Notes (optional)</label>
+					<textarea id="notes" name="notes" rows="3" class="textarea">{ d.Notes }</textarea>
+					if msg := d.Errors["notes"]; msg != "" {
+						<p class="text-sm text-destructive">{ msg }</p>
+					}
+				</div>
+				<div class="flex gap-2">
+					<button type="submit" class="btn h-11 flex-1">Save</button>
+					<a href={ templ.SafeURL(cancelHref(d.ID)) } class="btn h-11" data-variant="outline">Cancel</a>
+				</div>
+			</form>
+		</div>
+	}
+}
+
+func formAction(id int64) string {
+	if id == 0 {
+		return "/items"
+	}
+	return itemURL(id)
+}
+
+func cancelHref(id int64) string {
+	if id == 0 {
+		return "/"
+	}
+	return itemURL(id)
+}
+
+templ textField(name, label, value, errMsg string, required bool) {
+	<div class="field">
+		<label for={ name } class="label">{ label }</label>
+		<input id={ name } name={ name } type="text" value={ value } required?={ required } maxlength="100" autocomplete="off" class="input h-11"/>
+		if errMsg != "" {
+			<p class="text-sm text-destructive">{ errMsg }</p>
+		}
+	</div>
+}
+
+templ selectField(name, label string, selected int64, opts []store.ListValue, errMsg string) {
+	<div class="field">
+		<label for={ name } class="label">{ label }</label>
+		<select id={ name } name={ name } required class="select h-11 w-full">
+			<option value="">Choose…</option>
+			for _, v := range opts {
+				<option value={ idStr(v.ID) } selected?={ sel(v.ID, selected) }>{ v.Name }</option>
+			}
+		</select>
+		if errMsg != "" {
+			<p class="text-sm text-destructive">{ errMsg }</p>
+		}
+	</div>
+}
+
+// ItemPageData is the item detail page.
+type ItemPageData struct {
+	Item    store.Item
+	History []store.Change
+	// Error is shown above the history, for example if undo failed.
+	Error string
+}
+
+templ ItemPage(p Page, d ItemPageData) {
+	@Layout(p) {
+		<div class="mx-auto grid max-w-xl gap-4">
+			<a href="/" class="text-sm text-muted-foreground">← All items</a>
+			<div class="flex items-start justify-between gap-3">
+				<h1 class="text-2xl font-semibold break-words">{ d.Item.Name }</h1>
+				<a href={ templ.SafeURL(itemURL(d.Item.ID) + "/edit") } class="btn" data-variant="outline" data-size="sm">Edit</a>
+			</div>
+			<ul class="grid gap-2">
+				@Row(d.Item, "")
+			</ul>
+			<dl class="card grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 p-4 text-sm">
+				<dt class="text-muted-foreground">Category</dt>
+				<dd>{ orDash(d.Item.CategoryName) }</dd>
+				<dt class="text-muted-foreground">Location</dt>
+				<dd>{ orDash(d.Item.LocationName) }</dd>
+				<dt class="text-muted-foreground">Store</dt>
+				<dd>{ orDash(d.Item.StoreName) }</dd>
+				if d.Item.Notes != "" {
+					<dt class="text-muted-foreground">Notes</dt>
+					<dd class="whitespace-pre-line">{ d.Item.Notes }</dd>
+				}
+			</dl>
+			<section class="grid gap-2">
+				<h2 class="text-lg font-semibold">History</h2>
+				if d.Error != "" {
+					<p class="text-sm text-destructive" role="alert">{ d.Error }</p>
+				}
+				@History(d.Item.ID, d.History)
+			</section>
+			<div>
+				<button type="button" class="btn" data-variant="destructive" data-size="sm" onclick={ openDialog("delete-item") }>Delete item</button>
+			</div>
+			@confirmDialog("delete-item", "Delete "+d.Item.Name+"?", "This also deletes its history. It cannot be undone.", itemAction(d.Item.ID, "delete"))
+		</div>
+	}
+}
+
+script openDialog(id string) {
+	document.getElementById(id).showModal();
+}
+
+templ confirmDialog(id, title, body, action string) {
+	<dialog id={ id } class="dialog" aria-labelledby={ id + "-title" } onclick="if (event.target === this) this.close()">
+		<div class="w-[calc(100%-2rem)] max-w-sm rounded-xl border bg-popover p-6 text-popover-foreground shadow-lg">
+			<header class="grid gap-1.5">
+				<h2 id={ id + "-title" } class="text-lg font-semibold">{ title }</h2>
+				<p class="text-sm text-muted-foreground">{ body }</p>
+			</header>
+			<footer class="mt-6 flex flex-row justify-end gap-2">
+				<form method="dialog"><button class="btn" data-variant="outline">Cancel</button></form>
+				<form method="post" action={ templ.SafeURL(action) }>
+					<button type="submit" class="btn" data-variant="destructive">Delete</button>
+				</form>
+			</footer>
+		</div>
+	</dialog>
+}
+
+// History lists the latest changes. Only the newest has an undo button.
+templ History(itemID int64, changes []store.Change) {
+	if len(changes) == 0 {
+		<p class="text-sm text-muted-foreground">No changes yet.</p>
+	} else {
+		<ol class="grid gap-1.5">
+			for i, c := range changes {
+				<li class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
+					<span class="tabular-nums font-medium">{ delta(c.Delta) }</span>
+					<span class="flex-1 text-muted-foreground">
+						now <span class="tabular-nums">{ itoa(c.Count) }</span>
+						·
+						<time datetime={ rfc3339(c.CreatedAt) } data-local>{ fallbackTime(c.CreatedAt) }</time>
+					</span>
+					if i == 0 {
+						<form method="post" action={ templ.SafeURL(itemAction(itemID, "undo")) }>
+							<button type="submit" class="btn" data-variant="outline" data-size="sm">Undo</button>
+						</form>
+					}
+				</li>
+			}
+		</ol>
+	}
+}

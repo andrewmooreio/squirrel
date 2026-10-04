@@ -1,0 +1,62 @@
+package views
+
+templ Layout(p Page) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<title>{ p.Title }</title>
+			<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
+			<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)"/>
+			<link rel="manifest" href="/manifest.webmanifest"/>
+			<link rel="icon" href="/static/icon.svg" type="image/svg+xml"/>
+			<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png"/>
+			<meta name="mobile-web-app-capable" content="yes"/>
+			<meta name="apple-mobile-web-app-capable" content="yes"/>
+			<meta name="apple-mobile-web-app-title" content="Squirrel"/>
+			<link rel="stylesheet" href={ "/static/app.css?v=" + p.Ver }/>
+			<script src={ "/static/app.js?v=" + p.Ver }></script>
+			<script src={ "/static/vendor/htmx.min.js?v=" + p.Ver } defer></script>
+		</head>
+		<body>
+			<header class="border-b pt-[env(safe-area-inset-top)]">
+				<div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
+					<a href="/" class="flex items-center gap-2 text-lg font-semibold">
+						<img src="/static/icon.svg" alt="" class="size-8 rounded-lg"/>
+						Squirrel
+					</a>
+					<a
+						href="/lists/categories"
+						class="btn"
+						data-variant={ navVariant(p.Nav) }
+						data-size="sm"
+					>Manage lists</a>
+				</div>
+			</header>
+			<main class="mx-auto w-full max-w-5xl px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+func navVariant(nav string) string {
+	if nav == "lists" {
+		return "secondary"
+	}
+	return "ghost"
+}
+
+// Message is a small full page used for errors and notices.
+templ Message(p Page, heading, body, backHref, backLabel string) {
+	@Layout(p) {
+		<section class="empty mx-auto max-w-md py-12">
+			<header>
+				<h1 class="text-xl font-semibold">{ heading }</h1>
+				<p>{ body }</p>
+			</header>
+			<a href={ templ.SafeURL(backHref) } class="btn" data-variant="outline">{ backLabel }</a>
+		</section>
+	}
+}

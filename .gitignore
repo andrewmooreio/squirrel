@@ -1,0 +1,13 @@
+# Local tool binaries and build output
+/bin/
+/tmp/
+
+# Compiled stylesheet (built by `make css` and in the Docker image)
+/internal/web/static/app.css
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+.DS_Store
