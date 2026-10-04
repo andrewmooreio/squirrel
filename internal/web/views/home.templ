@@ -1,0 +1,257 @@
+package views
+
+import "github.com/andrewmooreio/squirrel/internal/store"
+
+// Tab is one entry in the category tab bar.
+type Tab struct {
+	Label  string
+	Href   string
+	Active bool
+}
+
+// StockData is everything the #stock region needs.
+type StockData struct {
+	Tabs  []Tab
+	Items []store.Item
+	// AnyItems is true if the database has at least one item, filtered or not.
+	AnyItems bool
+	CanAdd   bool
+	// Missing names the managed lists that are still empty.
+	Missing []string
+	// Filtered is true if a search or a filter is active.
+	Filtered  bool
+	ClearHref string
+}
+
+// HomeData is everything the main page needs.
+type HomeData struct {
+	Tab        string
+	Query      string
+	LocationID int64
+	StoreID    int64
+	Locations  []store.ListValue
+	Stores     []store.ListValue
+	Stock      StockData
+}
+
+templ Home(p Page, d HomeData) {
+	@Layout(p) {
+		<div id="main" class="grid gap-4">
+			@Main(d)
+		</div>
+	}
+}
+
+// Main is the search form plus the #stock region. Tab clicks swap it.
+templ Main(d HomeData) {
+	<form
+		id="filters"
+		method="get"
+		action="/"
+		class="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_11rem_11rem_auto]"
+	>
+		<input type="hidden" name="tab" value={ d.Tab }/>
+		<input
+			type="search"
+			name="q"
+			value={ d.Query }
+			placeholder="Search items"
+			aria-label="Search items"
+			autocomplete="off"
+			class="input col-span-2 h-11 sm:col-span-1"
+			hx-get="/"
+			hx-trigger="input changed delay:200ms, search"
+			hx-target="#stock"
+			hx-include="#filters"
+			hx-replace-url="true"
+			hx-sync="this:replace"
+		/>
+		<select
+			name="loc"
+			aria-label="Filter by location"
+			class="select h-11 w-full"
+			hx-get="/"
+			hx-trigger="change"
+			hx-target="#stock"
+			hx-include="#filters"
+			hx-replace-url="true"
+		>
+			<option value="">All locations</option>
+			for _, v := range d.Locations {
+				<option value={ idStr(v.ID) } selected?={ sel(v.ID, d.LocationID) }>{ v.Name }</option>
+			}
+		</select>
+		<select
+			name="store"
+			aria-label="Filter by store"
+			class="select h-11 w-full"
+			hx-get="/"
+			hx-trigger="change"
+			hx-target="#stock"
+			hx-include="#filters"
+			hx-replace-url="true"
+		>
+			<option value="">All stores</option>
+			for _, v := range d.Stores {
+				<option value={ idStr(v.ID) } selected?={ sel(v.ID, d.StoreID) }>{ v.Name }</option>
+			}
+		</select>
+		if d.Stock.CanAdd {
+			<a href="/items/new" class="btn col-span-2 h-11 sm:col-span-1">Add item</a>
+		} else {
+			<a href="/lists/categories" class="btn col-span-2 h-11 sm:col-span-1" data-variant="secondary">Set up lists</a>
+		}
+		<noscript><button type="submit" class="btn" data-variant="outline">Search</button></noscript>
+	</form>
+	@Stock(d.Stock)
+}
+
+templ Stock(d StockData) {
+	<div id="stock" class="grid gap-3">
+		<nav aria-label="Categories" class="tab-scroll -mx-4 px-4">
+			<div class="tabs">
+				<div role="tablist" aria-orientation="horizontal" data-variant="line" class="min-w-max">
+					for _, t := range d.Tabs {
+						<a
+							role="tab"
+							href={ templ.SafeURL(t.Href) }
+							aria-selected={ boolStr(t.Active) }
+							hx-get={ t.Href }
+							hx-target="#main"
+							hx-push-url="true"
+							class="h-11 px-4"
+						>{ t.Label }</a>
+					}
+				</div>
+			</div>
+		</nav>
+		if len(d.Items) == 0 {
+			@emptyState(d)
+		} else {
+			<ul class="grid gap-2 lg:grid-cols-2">
+				for _, it := range d.Items {
+					@Row(it, "")
+				}
+			</ul>
+		}
+	</div>
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+templ emptyState(d StockData) {
+	<section class="empty py-12">
+		if !d.AnyItems && !d.CanAdd {
+			<header>
+				<h2 class="text-lg font-semibold">Welcome to Squirrel</h2>
+				<p>
+					Before you add items, create at least one
+					for i, m := range d.Missing {
+						if i > 0 {
+							if i == len(d.Missing)-1 {
+								{ " and " }
+							} else {
+								{ ", " }
+							}
+						}
+						<strong>{ m }</strong>
+					}
+					in Manage lists.
+				</p>
+			</header>
+			<a href="/lists/categories" class="btn">Manage lists</a>
+		} else if !d.AnyItems {
+			<header>
+				<h2 class="text-lg font-semibold">No items yet</h2>
+				<p>Add the first thing you keep in stock.</p>
+			</header>
+			<a href="/items/new" class="btn">Add item</a>
+		} else {
+			<header>
+				<h2 class="text-lg font-semibold">No items found</h2>
+				if d.Filtered {
+					<p>No item matches the search and filters.</p>
+				} else {
+					<p>This tab has no items.</p>
+				}
+			</header>
+			if d.Filtered {
+				<a href={ templ.SafeURL(d.ClearHref) } class="btn" data-variant="outline" hx-get={ d.ClearHref } hx-target="#main" hx-push-url="true">Clear filters</a>
+			}
+		}
+	</section>
+}
+
+// Row is one item in the list. It is also the response to a count change.
+templ Row(it store.Item, msg string) {
+	<li id={ rowID(it.ID) } class="flex items-center gap-3 rounded-xl border bg-card p-3 text-card-foreground">
+		<div class="min-w-0 flex-1">
+			<a href={ templ.SafeURL(itemURL(it.ID)) } class="block truncate font-medium">{ it.Name }</a>
+			<p class="truncate text-sm text-muted-foreground">{ orDash(it.LocationName) }</p>
+			if msg != "" {
+				<p class="text-sm text-destructive" role="alert">{ msg }</p>
+			}
+		</div>
+		<div class="flex items-center gap-1.5">
+			<form
+				method="post"
+				action={ templ.SafeURL(itemAction(it.ID, "adjust")) }
+				hx-post={ itemAction(it.ID, "adjust") }
+				hx-target={ rowTarget(it.ID) }
+				hx-swap="outerHTML"
+				hx-sync="this:queue all"
+			>
+				<input type="hidden" name="delta" value="-1"/>
+				<button
+					type="submit"
+					class="btn size-12 text-xl"
+					data-variant="outline"
+					data-size="icon-lg"
+					aria-label={ "Take one " + it.Name }
+					disabled?={ it.Count == 0 }
+				>−</button>
+			</form>
+			<form
+				method="post"
+				action={ templ.SafeURL(itemAction(it.ID, "count")) }
+				hx-post={ itemAction(it.ID, "count") }
+				hx-trigger="submit, change"
+				hx-target={ rowTarget(it.ID) }
+				hx-swap="outerHTML"
+			>
+				<input
+					type="number"
+					name="count"
+					value={ itoa(it.Count) }
+					min="0"
+					step="1"
+					inputmode="numeric"
+					aria-label={ "Count of " + it.Name }
+					onfocus="this.select()"
+					class="input count-input h-12 w-16 text-center text-lg font-semibold tabular-nums"
+				/>
+			</form>
+			<form
+				method="post"
+				action={ templ.SafeURL(itemAction(it.ID, "adjust")) }
+				hx-post={ itemAction(it.ID, "adjust") }
+				hx-target={ rowTarget(it.ID) }
+				hx-swap="outerHTML"
+				hx-sync="this:queue all"
+			>
+				<input type="hidden" name="delta" value="1"/>
+				<button
+					type="submit"
+					class="btn size-12 text-xl"
+					data-size="icon-lg"
+					aria-label={ "Add one " + it.Name }
+				>+</button>
+			</form>
+		</div>
+	</li>
+}

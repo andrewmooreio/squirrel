@@ -1,0 +1,95 @@
+package views
+
+import "github.com/andrewmooreio/squirrel/internal/store"
+
+// ListsData is the Manage lists page.
+type ListsData struct {
+	Kind   store.ListKind
+	Values []store.ListValue
+	// Error is a message for the add form; ErrorID is the row with a rename error.
+	Error     string
+	ErrorID   int64
+	ErrorText string
+	NewName   string
+}
+
+templ Lists(p Page, d ListsData) {
+	@Layout(p) {
+		<div class="mx-auto grid max-w-xl gap-4">
+			<h1 class="text-xl font-semibold">Manage lists</h1>
+			<nav aria-label="Lists" class="tab-scroll">
+				<div class="tabs">
+					<div role="tablist" aria-orientation="horizontal" data-variant="line" class="min-w-max">
+						for _, k := range store.ListKinds {
+							<a
+								role="tab"
+								href={ templ.SafeURL(listURL(k)) }
+								aria-selected={ boolStr(k == d.Kind) }
+								class="h-11 px-4"
+							>{ kindPlural(k) }</a>
+						}
+					</div>
+				</div>
+			</nav>
+			<form method="post" action={ templ.SafeURL(listURL(d.Kind)) } class="flex gap-2">
+				<input
+					type="text"
+					name="name"
+					value={ d.NewName }
+					maxlength="100"
+					required
+					autocomplete="off"
+					placeholder={ "New " + kindLabel(d.Kind) }
+					aria-label={ "New " + kindLabel(d.Kind) + " name" }
+					class="input h-11 flex-1"
+				/>
+				<button type="submit" class="btn h-11">Add</button>
+			</form>
+			if d.Error != "" {
+				<p class="text-sm text-destructive" role="alert">{ d.Error }</p>
+			}
+			if len(d.Values) == 0 {
+				<p class="text-sm text-muted-foreground">No { kindPlural(d.Kind) } yet. Add the first one above.</p>
+			} else {
+				<ul class="grid gap-2">
+					for _, v := range d.Values {
+						@listRow(d, v)
+					}
+				</ul>
+			}
+		</div>
+	}
+}
+
+templ listRow(d ListsData, v store.ListValue) {
+	<li class="grid gap-1 rounded-xl border bg-card p-3">
+		<div class="flex flex-wrap items-center gap-2">
+			<form method="post" action={ templ.SafeURL(listValueAction(d.Kind, v.ID, "")) } class="flex min-w-full flex-1 gap-2 sm:min-w-0">
+				<input
+					type="text"
+					name="name"
+					value={ v.Name }
+					maxlength="100"
+					required
+					autocomplete="off"
+					aria-label={ "Rename " + v.Name }
+					class="input h-11 min-w-0 flex-1"
+				/>
+				<button type="submit" class="btn h-11" data-variant="outline">Rename</button>
+			</form>
+			<span class="badge mr-auto" data-variant="secondary">{ plural(v.Uses, "item", "items") }</span>
+			<button type="button" class="btn h-11" data-variant="destructive" aria-label={ "Delete " + v.Name } onclick={ openDialog(dialogID(v.ID)) }>Delete</button>
+		</div>
+		if d.ErrorID == v.ID && d.ErrorText != "" {
+			<p class="text-sm text-destructive" role="alert">{ d.ErrorText }</p>
+		}
+		@confirmDialog(dialogID(v.ID), "Delete "+v.Name+"?", deleteBody(d.Kind, v), listValueAction(d.Kind, v.ID, "delete"))
+	</li>
+}
+
+func deleteBody(kind store.ListKind, v store.ListValue) string {
+	if v.Uses == 0 {
+		return "No items use this " + kindLabel(kind) + "."
+	}
+	return plural(v.Uses, "item uses", "items use") + " this " + kindLabel(kind) + ". They stay in Squirrel with this field blank."
+}

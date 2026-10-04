@@ -1,0 +1,49 @@
+@import "tailwindcss" source(none);
+@source "../views";
+@import "./basecoat/basecoat-vega.css";
+
+/* Basecoat switches to dark tokens with html.dark; layout.templ sets it
+   from prefers-color-scheme. */
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply min-h-dvh bg-background text-foreground antialiased;
+  }
+}
+
+@layer components {
+  /* Tab bar that scrolls sideways instead of wrapping. */
+  .tab-scroll {
+    @apply overflow-x-auto overscroll-x-contain;
+    scrollbar-width: none;
+  }
+  .tab-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Basecoat's line tabs show no marker on a link, so draw a bottom bar. */
+  .tabs > [role='tablist'] {
+    height: auto;
+  }
+  .tabs > [role='tablist'] > [role='tab'] {
+    border-width: 0 0 2px;
+    border-style: solid;
+    border-color: transparent;
+    border-radius: 0;
+  }
+  .tabs > [role='tablist'] > [role='tab']::after {
+    display: none;
+  }
+  .tabs > [role='tablist'] > [role='tab'][aria-selected='true'] {
+    border-bottom-color: var(--color-primary) !important;
+    color: var(--color-foreground);
+  }
+
+  /* Large count buttons for one-handed use. */
+  .count-btn {
+    @apply size-12 shrink-0 text-lg font-semibold tabular-nums;
+  }
+}
