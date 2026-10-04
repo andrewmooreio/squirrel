@@ -148,7 +148,7 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Vary", "HX-Request, HX-Target")
 	switch {
-	case isHTMX(r) && r.Header.Get("HX-Target") == "stock":
+	case isHTMX(r) && hxTargetID(r) == "stock":
 		s.render(w, r, http.StatusOK, views.Stock(stock))
 	case isHTMX(r):
 		s.render(w, r, http.StatusOK, views.Main(data))

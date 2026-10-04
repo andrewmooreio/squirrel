@@ -163,6 +163,13 @@ func isHTMX(r *http.Request) bool {
 	return r.Header.Get("HX-Request") == "true" && r.Header.Get("HX-History-Restore-Request") != "true"
 }
 
+// hxTargetID returns the id of the element HTMX swaps into. HTMX 4 sends it
+// as tag#id, for example div#stock.
+func hxTargetID(r *http.Request) string {
+	_, id, _ := strings.Cut(r.Header.Get("HX-Target"), "#")
+	return id
+}
+
 // backTo redirects to the page the form was sent from, or to fallback.
 func backTo(w http.ResponseWriter, r *http.Request, fallback string) {
 	dest := fallback

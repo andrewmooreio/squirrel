@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Build the stylesheet with the Tailwind standalone CLI (no Node.js).
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS css
+FROM --platform=$BUILDPLATFORM debian:trixie-slim AS css
 ARG TAILWIND_VERSION=v4.3.3
 ARG BUILDARCH
 RUN apt-get update \
@@ -33,7 +33,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
 FROM --platform=$BUILDPLATFORM busybox:stable AS data
 RUN mkdir /data && chown 65532:65532 /data
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=build /squirrel /squirrel
 COPY --from=data --chown=65532:65532 /data /data
 ENV SQUIRREL_DB_PATH=/data/squirrel.db

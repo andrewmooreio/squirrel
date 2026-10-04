@@ -25,7 +25,7 @@ function localiseTimes() {
   });
 }
 document.addEventListener("DOMContentLoaded", localiseTimes);
-document.addEventListener("htmx:afterSwap", localiseTimes);
+document.addEventListener("htmx:after:swap", localiseTimes);
 
 // Keep the colour theme in step with the system setting (Basecoat uses html.dark).
 (function () {

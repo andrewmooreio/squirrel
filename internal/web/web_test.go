@@ -233,13 +233,13 @@ func TestHTMXFragments(t *testing.T) {
 	a.item("Tomatoes", 4, food, loc, shop)
 
 	// Search updates only the stock region.
-	r := a.get("/?q=tom", append(htmx, "HX-Target", "stock")...)
+	r := a.get("/?q=tom", append(htmx, "HX-Target", "div#stock")...)
 	r.wantStatus(t, 200)
 	r.contains(t, `id="stock"`, "Tomatoes")
 	r.lacks(t, "<html", `id="filters"`)
 
 	// A tab click swaps the search form and the stock region.
-	r = a.get("/?tab="+id(food), append(htmx, "HX-Target", "main")...)
+	r = a.get("/?tab="+id(food), append(htmx, "HX-Target", "div#main")...)
 	r.contains(t, `id="filters"`, `id="stock"`)
 	r.lacks(t, "<html")
 

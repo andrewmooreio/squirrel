@@ -204,7 +204,7 @@ templ Row(it store.Item, msg string) {
 				hx-post={ itemAction(it.ID, "adjust") }
 				hx-target={ rowTarget(it.ID) }
 				hx-swap="outerHTML"
-				hx-sync="this:queue all"
+				hx-sync="closest ul:queue all"
 			>
 				<input type="hidden" name="delta" value="-1"/>
 				<button
@@ -242,7 +242,7 @@ templ Row(it store.Item, msg string) {
 				hx-post={ itemAction(it.ID, "adjust") }
 				hx-target={ rowTarget(it.ID) }
 				hx-swap="outerHTML"
-				hx-sync="this:queue all"
+				hx-sync="closest ul:queue all"
 			>
 				<input type="hidden" name="delta" value="1"/>
 				<button

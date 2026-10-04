@@ -665,7 +665,7 @@ func Row(it store.Item, msg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" hx-swap=\"outerHTML\" hx-sync=\"this:queue all\"><input type=\"hidden\" name=\"delta\" value=\"-1\"> <button type=\"submit\" class=\"btn size-12 text-xl\" data-variant=\"outline\" data-size=\"icon-lg\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" hx-swap=\"outerHTML\" hx-sync=\"closest ul:queue all\"><input type=\"hidden\" name=\"delta\" value=\"-1\"> <button type=\"submit\" class=\"btn size-12 text-xl\" data-variant=\"outline\" data-size=\"icon-lg\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -792,7 +792,7 @@ func Row(it store.Item, msg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" hx-swap=\"outerHTML\" hx-sync=\"this:queue all\"><input type=\"hidden\" name=\"delta\" value=\"1\"> <button type=\"submit\" class=\"btn size-12 text-xl\" data-size=\"icon-lg\" aria-label=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" hx-swap=\"outerHTML\" hx-sync=\"closest ul:queue all\"><input type=\"hidden\" name=\"delta\" value=\"1\"> <button type=\"submit\" class=\"btn size-12 text-xl\" data-size=\"icon-lg\" aria-label=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
