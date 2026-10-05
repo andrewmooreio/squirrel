@@ -45,8 +45,8 @@ type ItemFilter struct {
 	Search        string
 	// OutOfStock keeps only the items with a count of 0.
 	OutOfStock bool
-	// Sort picks the order of the result. Use SortName, SortCount or
-	// SortUpdated. Any other value sorts by name.
+	// Sort picks the order of the result. Use SortName, SortNameDesc,
+	// SortCount or SortUpdated. Any other value sorts by name.
 	Sort string
 }
 
@@ -54,6 +54,8 @@ type ItemFilter struct {
 const (
 	// SortName orders by name. It is the default.
 	SortName = ""
+	// SortNameDesc orders by name, Z to A.
+	SortNameDesc = "name-desc"
 	// SortCount orders by count, lowest first.
 	SortCount = "count"
 	// SortUpdated orders by the most recent change first.
@@ -128,6 +130,8 @@ func (s *Store) ListItems(ctx context.Context, f ItemFilter) ([]Item, error) {
 		query += " WHERE " + strings.Join(where, " AND ")
 	}
 	switch f.Sort {
+	case SortNameDesc:
+		query += " ORDER BY i.name COLLATE NOCASE DESC, i.id DESC"
 	case SortCount:
 		query += " ORDER BY i.count, i.name COLLATE NOCASE, i.id"
 	case SortUpdated:

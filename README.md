@@ -15,7 +15,7 @@ Squirrel does not decide when to buy more. You look at the counts and decide.
 - A list of items with large **−1** and **+1** buttons, made for one hand on a phone.
 - Tap a count to type an exact number.
 - Tabs for **All** and for each category, plus search and filters for location and store.
-- Sort by name, by lowest count first, or by the most recent change.
+- Sort from A to Z or Z to A, by lowest count first, or by the most recent change.
 - A **Shopping list** page shows the items with a count of 0, grouped by store.
 - Every change is recorded. See the last 10 changes of an item and **undo** the latest one.
 - Categories, locations and stores are lists that you manage in the app.
@@ -158,13 +158,13 @@ Squirrel has a read-only JSON API. Use it for dashboards and home automation. It
 
 `GET /api/items` takes these query parameters. All of them are optional.
 
-| Parameter  | Meaning                                                              |
-| ---------- | -------------------------------------------------------------------- |
-| `q`        | Search in the name                                                   |
-| `category` | A category id, or `none` for items without a category                |
-| `location` | A location id                                                        |
-| `store`    | A store id                                                           |
-| `sort`     | `count` (lowest first) or `updated` (newest first). Default: name    |
+| Parameter  | Meaning                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| `q`        | Search in the name                                                                        |
+| `category` | A category id, or `none` for items without a category                                     |
+| `location` | A location id                                                                             |
+| `store`    | A store id                                                                                |
+| `sort`     | `name-desc` (Z to A), `count` (lowest first) or `updated` (newest first). Default: A to Z |
 
 To find an id, use the main page. Click a category tab, or choose a location or store filter. The address bar then shows the id, for example `?tab=3`, `?loc=2` or `?store=1`. The id of an item is in the address of its page, for example `/items/7`.
 

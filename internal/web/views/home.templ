@@ -107,9 +107,10 @@ templ Main(d HomeData) {
 			hx-include="#filters"
 			hx-replace-url="true"
 		>
-			<option value="" selected?={ d.Sort == "" }>Name</option>
-			<option value="count" selected?={ d.Sort == "count" }>Lowest count first</option>
-			<option value="updated" selected?={ d.Sort == "updated" }>Recently changed</option>
+			<option value={ store.SortName } selected?={ d.Sort == store.SortName }>Sort: A to Z</option>
+			<option value={ store.SortNameDesc } selected?={ d.Sort == store.SortNameDesc }>Sort: Z to A</option>
+			<option value={ store.SortCount } selected?={ d.Sort == store.SortCount }>Sort: Lowest count first</option>
+			<option value={ store.SortUpdated } selected?={ d.Sort == store.SortUpdated }>Sort: Recently changed</option>
 		</select>
 		if d.Stock.CanAdd {
 			<a href="/items/new" class="btn h-11">Add item</a>
