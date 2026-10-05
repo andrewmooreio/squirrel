@@ -784,8 +784,13 @@ func TestShoppingList(t *testing.T) {
 		wantRedirect(t, "/items/"+id(beans.ID))
 	r := a.post("/items/"+id(milk.ID)+"/list", url.Values{"on": {"1"}}, "HX-Request", "true")
 	r.wantStatus(t, 200)
-	r.contains(t, `aria-pressed="true"`, "Take Milk off the shopping list")
-	r.lacks(t, "<html")
+	r.contains(t, `aria-pressed="true"`, "Take Milk off the shopping list", `title="On the shopping list. Tap to take it off."`)
+	r.lacks(t, "<html", "On the list")
+
+	// The button for an item off the list offers to add it.
+	r = a.post("/items/"+id(milk.ID)+"/list", url.Values{"on": {"0"}}, "HX-Request", "true")
+	r.contains(t, `aria-pressed="false"`, "Add Milk to the shopping list", `title="Add to the shopping list"`)
+	a.post("/items/"+id(milk.ID)+"/list", url.Values{"on": {"1"}}, "HX-Request", "true").wantStatus(t, 200)
 
 	r = a.get("/shopping")
 	r.wantStatus(t, 200)
