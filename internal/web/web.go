@@ -67,6 +67,12 @@ func New(st *store.Store) http.Handler {
 	mux.HandleFunc("POST /lists/{kind}/{id}", s.renameListValue)
 	mux.HandleFunc("POST /lists/{kind}/{id}/delete", s.deleteListValue)
 
+	mux.HandleFunc("GET /api/items", s.apiItems)
+	mux.HandleFunc("GET /api/items/{id}", s.apiItem)
+	mux.HandleFunc("/api/items", s.apiReadOnly)
+	mux.HandleFunc("/api/items/{id}", s.apiReadOnly)
+	mux.HandleFunc("/api/", s.apiNotFound)
+
 	mux.HandleFunc("/", s.notFound)
 
 	// Refuse changes sent from another website, so a page the user visits

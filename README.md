@@ -18,6 +18,7 @@ Squirrel does not decide when to buy more. You look at the counts and decide.
 - Every change is recorded. See the last 10 changes of an item and **undo** the latest one.
 - Categories, locations and stores are lists that you manage in the app.
 - Works on a phone and on a desktop. Add it to your home screen for a full-screen app.
+- A read-only JSON API for dashboards and home automation, for example Home Assistant.
 - One small container. One SQLite file. No internet needed at runtime.
 
 ## Security: read this first
@@ -113,6 +114,53 @@ To restore, stop the container and unpack the archive into the volume.
 ## Health check
 
 `GET /healthz` returns `200 ok` when the database is reachable. The image already uses it for its Docker health check. You can also point your reverse proxy or monitoring at it.
+
+## JSON API
+
+Squirrel has a read-only JSON API. Use it for dashboards and home automation. It cannot change your stock.
+
+> [!WARNING]
+> The API has no login, like the rest of Squirrel. Anyone who can reach Squirrel can read it. Read [Security](#security-read-this-first).
+
+| Endpoint                | Returns                      |
+| ----------------------- | ---------------------------- |
+| `GET /api/items`        | A list of items              |
+| `GET /api/items/{id}`   | One item                     |
+
+`GET /api/items` takes these query parameters. All of them are optional.
+
+| Parameter  | Meaning                                                              |
+| ---------- | -------------------------------------------------------------------- |
+| `q`        | Search in the name                                                   |
+| `category` | A category id, or `none` for items without a category                |
+| `location` | A location id                                                        |
+| `store`    | A store id                                                           |
+| `sort`     | `count` (lowest first) or `updated` (newest first). Default: name    |
+
+```sh
+curl 'http://localhost:8080/api/items?sort=count'
+```
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Tinned tomatoes",
+      "count": 3,
+      "category": "Food",
+      "location": "Garage",
+      "store": "Costco",
+      "notes": "",
+      "updated_at": "2026-10-05T09:40:33Z"
+    }
+  ]
+}
+```
+
+A list field that is blank is `null`. Times are UTC. An empty list is `[]`.
+
+Errors are JSON, for example `{"error":"Not found."}`. An unknown item gives `404`. An id that is not a number gives `400`.
 
 ## Development
 
