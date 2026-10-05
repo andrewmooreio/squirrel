@@ -42,9 +42,12 @@ templ Layout(p Page) {
 					</div>
 				</div>
 			</header>
-			<main class="mx-auto w-full max-w-5xl px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+			<main class="mx-auto w-full max-w-5xl px-4 py-4">
 				{ children... }
 			</main>
+			<footer class="mx-auto w-full max-w-5xl px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-center text-xs text-muted-foreground">
+				Squirrel { p.Version }
+			</footer>
 		</body>
 	</html>
 }

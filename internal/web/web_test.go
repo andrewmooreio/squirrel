@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/andrewmooreio/squirrel/internal/store"
+	"github.com/andrewmooreio/squirrel/internal/version"
 	"github.com/andrewmooreio/squirrel/internal/web"
 )
 
@@ -167,6 +168,17 @@ func TestHealthz(t *testing.T) {
 
 	_ = a.store.Close()
 	a.get("/healthz").wantStatus(t, http.StatusServiceUnavailable)
+}
+
+func TestVersionShown(t *testing.T) {
+	old := version.Version
+	version.Version = "9.9.9"
+	t.Cleanup(func() { version.Version = old })
+
+	a := newApp(t)
+	for _, path := range []string{"/", "/lists/categories", "/nope"} {
+		a.get(path).contains(t, "Squirrel 9.9.9")
+	}
 }
 
 func TestManifestAndAssets(t *testing.T) {

@@ -21,13 +21,15 @@ RUN tailwindcss -i internal/web/css/input.css -o /app.css --minify
 FROM --platform=$BUILDPLATFORM golang:1.27 AS build
 ARG TARGETOS
 ARG TARGETARCH
+# The release workflow passes the version. The build context has no .git.
+ARG VERSION=dev
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=css /app.css internal/web/static/app.css
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags "-s -w" -o /squirrel .
+    go build -trimpath -ldflags "-s -w -X github.com/andrewmooreio/squirrel/internal/version.Version=${VERSION}" -o /squirrel .
 
 # Create the data directory owned by the non-root user.
 FROM --platform=$BUILDPLATFORM busybox:stable AS data

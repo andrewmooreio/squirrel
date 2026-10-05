@@ -108,6 +108,18 @@ jobs:
             type=raw,value=edge,enable=${{ needs.release-please.outputs.release_created != 'true' }}
             type=sha,prefix=sha-,format=short,enable=${{ needs.release-please.outputs.release_created != 'true' }}
 
+      - name: Image version
+        id: version
+        env:
+          RELEASED: ${{ needs.release-please.outputs.release_created }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          if [ "$RELEASED" = "true" ]; then
+            echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=edge-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -115,5 +127,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.version.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

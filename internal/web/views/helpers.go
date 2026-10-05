@@ -17,6 +17,8 @@ type Page struct {
 	Nav string
 	// Ver busts the browser cache of the embedded assets.
 	Ver string
+	// Version is the app version shown in the footer.
+	Version string
 }
 
 func itemURL(id int64) string { return fmt.Sprintf("/items/%d", id) }
