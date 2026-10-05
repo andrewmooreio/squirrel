@@ -310,6 +310,7 @@ func TestSort(t *testing.T) {
 		}
 	}
 	order("/", "Apples", "Beans", "Cocoa")
+	order("/?sort=name-desc", "Cocoa", "Beans", "Apples")
 	order("/?sort=count", "Beans", "Cocoa", "Apples")
 	order("/?sort=updated", "Cocoa", "Apples", "Beans")
 	order("/?sort=bogus", "Apples", "Beans", "Cocoa")
@@ -319,7 +320,10 @@ func TestSort(t *testing.T) {
 
 	// The select marks the current option.
 	a.get("/?sort=count").contains(t, `<option value="count" selected>`)
-	a.get("/").contains(t, `<option value="" selected>Name</option>`)
+	a.get("/").contains(t, `<option value="" selected>Sort: A to Z</option>`)
+	a.get("/?sort=name-desc").contains(t, `<option value="name-desc" selected>Sort: Z to A</option>`)
+	a.get("/").contains(t, `>Sort: A to Z</option>`, `>Sort: Z to A</option>`,
+		`>Sort: Lowest count first</option>`, `>Sort: Recently changed</option>`)
 
 	// A sort alone is not a filter. Clear filters keeps the sort.
 	a.get("/?sort=count").lacks(t, "Clear filters")
@@ -690,6 +694,7 @@ func TestAPIItems(t *testing.T) {
 	check("/api/items?store="+id(costco), "Beans", "Cocoa")
 	check("/api/items?category="+id(tools)+"&location="+id(shed), "Dust")
 	check("/api/items?sort=count", "Beans", "Dust", "Cocoa", "Apples")
+	check("/api/items?sort=name-desc", "Dust", "Cocoa", "Beans", "Apples")
 	check("/api/items?sort=bogus", "Apples", "Beans", "Cocoa", "Dust")
 
 	for _, bad := range []string{"category=abc", "category=-1", "location=x", "store=1.5"} {
