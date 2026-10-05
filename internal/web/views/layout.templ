@@ -22,16 +22,24 @@ templ Layout(p Page) {
 		<body>
 			<header class="border-b pt-[env(safe-area-inset-top)]">
 				<div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
-					<a href="/" class="flex items-center gap-2 text-lg font-semibold">
+					<a href="/" class="flex min-w-0 items-center gap-2 text-lg font-semibold">
 						<img src="/static/icon.svg" alt="" class="size-8 rounded-lg"/>
 						Squirrel
 					</a>
-					<a
-						href="/lists/categories"
-						class="btn"
-						data-variant={ navVariant(p.Nav) }
-						data-size="sm"
-					>Manage lists</a>
+					<div class="flex shrink-0 gap-1">
+						<a
+							href="/shopping"
+							class="btn whitespace-nowrap"
+							data-variant={ navVariant(p.Nav, "shopping") }
+							data-size="sm"
+						>Shopping list</a>
+						<a
+							href="/lists/categories"
+							class="btn whitespace-nowrap"
+							data-variant={ navVariant(p.Nav, "lists") }
+							data-size="sm"
+						>Manage lists</a>
+					</div>
 				</div>
 			</header>
 			<main class="mx-auto w-full max-w-5xl px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
@@ -41,8 +49,9 @@ templ Layout(p Page) {
 	</html>
 }
 
-func navVariant(nav string) string {
-	if nav == "lists" {
+// navVariant styles a header link as current when it matches the page.
+func navVariant(current, link string) string {
+	if current == link {
 		return "secondary"
 	}
 	return "ghost"

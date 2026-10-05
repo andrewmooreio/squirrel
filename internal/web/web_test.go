@@ -687,3 +687,69 @@ func TestAPIItem(t *testing.T) {
 		}
 	}
 }
+
+func TestShoppingList(t *testing.T) {
+	a := newApp(t)
+	ctx := context.Background()
+	cat, loc, costco := a.seed()
+
+	// No item at 0.
+	a.get("/shopping").contains(t, "Nothing to buy", "Back to the list")
+
+	aldi, err := a.store.CreateListValue(ctx, store.Stores, "Aldi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rice := a.item("Rice", 0, cat, loc, costco)
+	a.item("Beans", 2, cat, loc, costco)
+	a.item("Milk", 0, cat, loc, aldi)
+
+	r := a.get("/shopping")
+	r.wantStatus(t, 200)
+	r.contains(t, "Shopping list", "Rice", "Milk")
+	if strings.Contains(r.body, "Beans") || strings.Contains(r.body, "Nothing to buy") {
+		t.Errorf("page lists an item above 0 or the empty state; body:\n%s", r.body)
+	}
+	at := func(body, s string) int {
+		t.Helper()
+		i := strings.Index(body, s)
+		if i < 0 {
+			t.Fatalf("body does not contain %q; body:\n%s", s, body)
+		}
+		return i
+	}
+	hAldi, hCostco := at(r.body, ">Aldi</h2>"), at(r.body, ">Costco</h2>")
+	if hAldi > hCostco {
+		t.Errorf("Aldi heading is after Costco heading")
+	}
+	if m := at(r.body, "Take one Milk"); m < hAldi || m > hCostco {
+		t.Errorf("Milk is not under Aldi")
+	}
+	if rc := at(r.body, "Take one Rice"); rc < hCostco {
+		t.Errorf("Rice is not under Costco")
+	}
+
+	// Items of a deleted store move to a last group.
+	if err := a.store.DeleteListValue(ctx, store.Stores, aldi); err != nil {
+		t.Fatal(err)
+	}
+	r = a.get("/shopping")
+	if strings.Contains(r.body, ">Aldi</h2>") {
+		t.Error("deleted store still has a heading")
+	}
+	hNone := at(r.body, ">No store</h2>")
+	if hNone < at(r.body, ">Costco</h2>") || at(r.body, "Take one Milk") < hNone {
+		t.Errorf("Milk is not in the last No store group")
+	}
+
+	// A plain post goes back to the shopping list.
+	a.post("/items/"+id(rice.ID)+"/adjust", url.Values{"delta": {"1"}}, "Referer", "http://example.com/shopping").
+		wantRedirect(t, "/shopping")
+
+	// The header links to the page and marks it when current.
+	a.get("/").contains(t, `href="/shopping"`)
+	r = a.get("/shopping")
+	if !regexp.MustCompile(`href="/shopping"[^>]*data-variant="secondary"`).MatchString(r.body) {
+		t.Errorf("Shopping list link is not current; body:\n%s", r.body)
+	}
+}
