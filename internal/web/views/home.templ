@@ -29,6 +29,7 @@ type HomeData struct {
 	Query      string
 	LocationID int64
 	StoreID    int64
+	Sort       string
 	Locations  []store.ListValue
 	Stores     []store.ListValue
 	Stock      StockData
@@ -48,7 +49,7 @@ templ Main(d HomeData) {
 		id="filters"
 		method="get"
 		action="/"
-		class="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_11rem_11rem_auto]"
+		class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-[1fr_10rem_10rem_10rem_auto]"
 	>
 		<input type="hidden" name="tab" value={ d.Tab }/>
 		<input
@@ -58,7 +59,7 @@ templ Main(d HomeData) {
 			placeholder="Search items"
 			aria-label="Search items"
 			autocomplete="off"
-			class="input col-span-2 h-11 sm:col-span-1"
+			class="input col-span-2 h-11 sm:col-span-4 lg:col-span-1"
 			hx-get="/"
 			hx-trigger="input changed delay:200ms, search"
 			hx-target="#stock"
@@ -96,10 +97,24 @@ templ Main(d HomeData) {
 				<option value={ idStr(v.ID) } selected?={ sel(v.ID, d.StoreID) }>{ v.Name }</option>
 			}
 		</select>
+		<select
+			name="sort"
+			aria-label="Sort items"
+			class="select h-11 w-full"
+			hx-get="/"
+			hx-trigger="change"
+			hx-target="#stock"
+			hx-include="#filters"
+			hx-replace-url="true"
+		>
+			<option value="" selected?={ d.Sort == "" }>Name</option>
+			<option value="count" selected?={ d.Sort == "count" }>Lowest count first</option>
+			<option value="updated" selected?={ d.Sort == "updated" }>Recently changed</option>
+		</select>
 		if d.Stock.CanAdd {
-			<a href="/items/new" class="btn col-span-2 h-11 sm:col-span-1">Add item</a>
+			<a href="/items/new" class="btn h-11">Add item</a>
 		} else {
-			<a href="/lists/categories" class="btn col-span-2 h-11 sm:col-span-1" data-variant="secondary">Set up lists</a>
+			<a href="/lists/categories" class="btn h-11" data-variant="secondary">Set up lists</a>
 		}
 		<noscript><button type="submit" class="btn" data-variant="outline">Search</button></noscript>
 	</form>

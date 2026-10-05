@@ -43,7 +43,20 @@ type ItemFilter struct {
 	LocationID    int64
 	StoreID       int64
 	Search        string
+	// Sort picks the order of the result. Use SortName, SortCount or
+	// SortUpdated. Any other value sorts by name.
+	Sort string
 }
+
+// Sort orders for ItemFilter.Sort.
+const (
+	// SortName orders by name. It is the default.
+	SortName = ""
+	// SortCount orders by count, lowest first.
+	SortCount = "count"
+	// SortUpdated orders by the most recent change first.
+	SortUpdated = "updated"
+)
 
 // Change is one recorded count change. Count is the count after the change.
 type Change struct {
@@ -109,7 +122,14 @@ func (s *Store) ListItems(ctx context.Context, f ItemFilter) ([]Item, error) {
 	if len(where) > 0 {
 		query += " WHERE " + strings.Join(where, " AND ")
 	}
-	query += " ORDER BY i.name COLLATE NOCASE, i.id"
+	switch f.Sort {
+	case SortCount:
+		query += " ORDER BY i.count, i.name COLLATE NOCASE, i.id"
+	case SortUpdated:
+		query += " ORDER BY i.updated_at DESC, i.name COLLATE NOCASE, i.id"
+	default:
+		query += " ORDER BY i.name COLLATE NOCASE, i.id"
+	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
