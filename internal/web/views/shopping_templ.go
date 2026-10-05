@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/andrewmooreio/squirrel/internal/store"
 
-// ShoppingGroup is the out-of-stock items for one store.
+// ShoppingGroup is the items on the shopping list for one store.
 type ShoppingGroup struct {
 	Store string
 	Items []store.Item
@@ -54,12 +54,12 @@ func Shopping(p Page, d ShoppingData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"grid gap-4\"><header><h1 class=\"text-xl font-semibold\">Shopping list</h1><p class=\"text-sm text-muted-foreground\">Items with a count of 0, grouped by store.</p></header>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"grid gap-4\"><header><h1 class=\"text-xl font-semibold\">Shopping list</h1><p class=\"text-sm text-muted-foreground\">Items you added to the shopping list, grouped by store.</p></header>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if len(d.Groups) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"empty py-12\"><header><h2 class=\"text-lg font-semibold\">Nothing to buy</h2><p>Every item has a count of 1 or more.</p></header><a href=\"/\" class=\"btn\" data-variant=\"outline\">Back to the list</a></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"empty py-12\"><header><h2 class=\"text-lg font-semibold\">Nothing to buy</h2><p>Tap the cart on an item to add it to the list.</p></header><a href=\"/\" class=\"btn\" data-variant=\"outline\">Back to the list</a></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -78,7 +78,7 @@ func Shopping(p Page, d ShoppingData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h2><ul class=\"grid gap-2 lg:grid-cols-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h2><ul class=\"grid grid-cols-[minmax(0,1fr)] gap-2 lg:grid-cols-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

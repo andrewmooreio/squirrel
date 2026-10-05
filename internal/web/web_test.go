@@ -594,6 +594,7 @@ type apiItemJSON struct {
 	Location  *string `json:"location"`
 	Store     *string `json:"store"`
 	Notes     string  `json:"notes"`
+	OnList    bool    `json:"on_list"`
 	UpdatedAt string  `json:"updated_at"`
 }
 
@@ -697,6 +698,21 @@ func TestAPIItems(t *testing.T) {
 	check("/api/items?sort=name-desc", "Dust", "Cocoa", "Beans", "Apples")
 	check("/api/items?sort=bogus", "Apples", "Beans", "Cocoa", "Dust")
 
+	// The shopping list flag.
+	if apples.OnList {
+		t.Error("apples are on the list by default")
+	}
+	if _, err := a.store.SetOnList(ctx, out.Items[2].ID, true); err != nil { // Cocoa
+		t.Fatal(err)
+	}
+	check("/api/items?on_list=1", "Cocoa")
+	check("/api/items?on_list=true", "Cocoa")
+	check("/api/items?on_list=0", "Apples", "Beans", "Dust")
+	check("/api/items?on_list=false", "Apples", "Beans", "Dust")
+	check("/api/items?on_list=", "Apples", "Beans", "Cocoa", "Dust")
+	a.get("/api/items?on_list=1").contains(t, `"on_list":true`)
+	a.get("/api/items?on_list=bogus").wantAPIError(t, http.StatusBadRequest, "Invalid on_list.")
+
 	for _, bad := range []string{"category=abc", "category=-1", "location=x", "store=1.5"} {
 		a.get("/api/items?"+bad).wantJSON(t, http.StatusBadRequest)
 	}
@@ -746,22 +762,36 @@ func TestShoppingList(t *testing.T) {
 	ctx := context.Background()
 	cat, loc, costco := a.seed()
 
-	// No item at 0.
-	a.get("/shopping").contains(t, "Nothing to buy", "Back to the list")
+	// Nothing is on the list.
+	a.get("/shopping").contains(t, "Nothing to buy", "Tap the cart", "Back to the list")
 
 	aldi, err := a.store.CreateListValue(ctx, store.Stores, "Aldi")
 	if err != nil {
 		t.Fatal(err)
 	}
 	rice := a.item("Rice", 0, cat, loc, costco)
-	a.item("Beans", 2, cat, loc, costco)
-	a.item("Milk", 0, cat, loc, aldi)
+	beans := a.item("Beans", 2, cat, loc, costco)
+	milk := a.item("Milk", 5, cat, loc, aldi)
+	a.item("Salt", 0, cat, loc, costco)
 
-	r := a.get("/shopping")
+	// An item at 0 does not join the list by itself.
+	a.get("/shopping").contains(t, "Nothing to buy")
+
+	// A plain post goes back. An HTMX post swaps the row.
+	a.post("/items/"+id(rice.ID)+"/list", url.Values{"on": {"1"}}, "Referer", "http://example.com/").
+		wantRedirect(t, "/")
+	a.post("/items/"+id(beans.ID)+"/list", url.Values{"on": {"1"}}).
+		wantRedirect(t, "/items/"+id(beans.ID))
+	r := a.post("/items/"+id(milk.ID)+"/list", url.Values{"on": {"1"}}, "HX-Request", "true")
 	r.wantStatus(t, 200)
-	r.contains(t, "Shopping list", "Rice", "Milk")
-	if strings.Contains(r.body, "Beans") || strings.Contains(r.body, "Nothing to buy") {
-		t.Errorf("page lists an item above 0 or the empty state; body:\n%s", r.body)
+	r.contains(t, `aria-pressed="true"`, "Take Milk off the shopping list")
+	r.lacks(t, "<html")
+
+	r = a.get("/shopping")
+	r.wantStatus(t, 200)
+	r.contains(t, "Shopping list", "Rice", "Beans", "Milk")
+	if strings.Contains(r.body, "Salt") || strings.Contains(r.body, "Nothing to buy") {
+		t.Errorf("page lists an item that is not on the list or the empty state; body:\n%s", r.body)
 	}
 	at := func(body, s string) int {
 		t.Helper()
@@ -795,9 +825,64 @@ func TestShoppingList(t *testing.T) {
 		t.Errorf("Milk is not in the last No store group")
 	}
 
-	// A plain post goes back to the shopping list.
-	a.post("/items/"+id(rice.ID)+"/adjust", url.Values{"delta": {"1"}}, "Referer", "http://example.com/shopping").
+	// Count changes and undo leave the flag alone.
+	ri := "/items/" + id(rice.ID)
+	a.post(ri+"/adjust", url.Values{"delta": {"1"}}, "Referer", "http://example.com/shopping").
 		wantRedirect(t, "/shopping")
+	a.get("/shopping").contains(t, "Count of Rice")
+	a.post(ri+"/adjust", url.Values{"delta": {"-1"}}).wantStatus(t, 303)
+	a.post(ri+"/count", url.Values{"count": {"7"}}).wantStatus(t, 303)
+	a.post(ri+"/undo", nil).wantStatus(t, 303)
+	a.get("/shopping").contains(t, "Take Rice off the shopping list")
+	a.get(ri).contains(t, `aria-pressed="true"`)
+
+	// Taking an item off removes it on the next load.
+	r = a.post(ri+"/list", url.Values{"on": {"0"}}, "HX-Request", "true")
+	r.wantStatus(t, 200)
+	r.contains(t, `aria-pressed="false"`, "Add Rice to the shopping list")
+	if strings.Contains(a.get("/shopping").body, "Rice") {
+		t.Error("Rice is still on the shopping list")
+	}
+
+	// Bad input.
+	for _, on := range []url.Values{{"on": {"yes"}}, {"on": {""}}, {}} {
+		a.post(ri+"/list", on).wantStatus(t, http.StatusBadRequest)
+	}
+	a.post("/items/9999/list", url.Values{"on": {"1"}}).wantStatus(t, http.StatusNotFound)
+	a.post("/items/abc/list", url.Values{"on": {"1"}}).wantStatus(t, http.StatusNotFound)
+
+	// Other sites cannot change the list.
+	a.post(ri+"/list", url.Values{"on": {"1"}}, "Sec-Fetch-Site", "cross-site").wantStatus(t, http.StatusForbidden)
+	a.post(ri+"/list", url.Values{"on": {"1"}}, "Origin", "http://evil.example").wantStatus(t, http.StatusForbidden)
+	if strings.Contains(a.get("/shopping").body, "Rice") {
+		t.Error("a refused post changed the list")
+	}
+
+	// The flag is not a count change: it does not touch history or the
+	// "recently changed" sort.
+	histBefore, err := a.store.History(ctx, rice.ID, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := a.store.GetItem(ctx, rice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.post(ri+"/list", url.Values{"on": {"1"}}).wantStatus(t, 303)
+	after, err := a.store.GetItem(ctx, rice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	histAfter, err := a.store.History(ctx, rice.ID, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(histAfter) != len(histBefore) {
+		t.Errorf("history grew from %d to %d changes", len(histBefore), len(histAfter))
+	}
+	if !after.UpdatedAt.Equal(before.UpdatedAt) {
+		t.Errorf("updated_at changed from %v to %v", before.UpdatedAt, after.UpdatedAt)
+	}
 
 	// The header links to the page and marks it when current.
 	a.get("/").contains(t, `href="/shopping"`)

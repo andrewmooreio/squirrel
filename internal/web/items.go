@@ -223,6 +223,31 @@ func (s *server) adjustItem(w http.ResponseWriter, r *http.Request) {
 	s.countDone(w, r, it, "")
 }
 
+// setOnList adds an item to the shopping list or takes it off. HTMX swaps the
+// row; a plain post goes back.
+func (s *server) setOnList(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(r, "id")
+	if !ok {
+		s.notFound(w, r)
+		return
+	}
+	on := r.PostFormValue("on")
+	if on != "0" && on != "1" {
+		s.message(w, r, http.StatusBadRequest, "Bad request", "The shopping list value must be 1 or 0.")
+		return
+	}
+	it, err := s.store.SetOnList(r.Context(), id, on == "1")
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if !isHTMX(r) {
+		backTo(w, r, itemPath(id))
+		return
+	}
+	s.render(w, r, http.StatusOK, views.Row(it, ""))
+}
+
 func (s *server) setCount(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(r, "id")
 	if !ok {

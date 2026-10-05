@@ -100,3 +100,11 @@ func delta(d int) string {
 	}
 	return strconv.Itoa(d)
 }
+
+// onValue is the value of the hidden "on" field of the shopping list form.
+func onValue(on bool) string {
+	if on {
+		return "1"
+	}
+	return "0"
+}
