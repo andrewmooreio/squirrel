@@ -51,6 +51,10 @@ func New(st *store.Store) http.Handler {
 
 	mux.HandleFunc("GET /shopping", s.shopping)
 
+	mux.HandleFunc("GET /transfer", s.transfer)
+	mux.HandleFunc("GET /export.csv", s.exportCSV)
+	mux.HandleFunc("POST /import", s.importCSV)
+
 	mux.HandleFunc("GET /items/new", s.newItem)
 	mux.HandleFunc("POST /items", s.createItem)
 	mux.HandleFunc("GET /items/{id}", s.showItem)

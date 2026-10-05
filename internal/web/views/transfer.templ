@@ -1,0 +1,76 @@
+package views
+
+import "github.com/andrewmooreio/squirrel/internal/store"
+
+// ImportDoneData is the result page of an import.
+type ImportDoneData struct {
+	Result store.ImportResult
+}
+
+templ Transfer(p Page) {
+	@Layout(p) {
+		<div class="mx-auto grid max-w-xl gap-6">
+			<h1 class="text-xl font-semibold">Import and export</h1>
+			<section class="grid gap-2 rounded-xl border bg-card p-4">
+				<h2 class="text-lg font-semibold">Export</h2>
+				<p class="text-sm text-muted-foreground">Download all your items as a CSV file. Open it in a spreadsheet.</p>
+				<div>
+					<a href="/export.csv" class="btn h-11" data-variant="outline">Export CSV</a>
+				</div>
+			</section>
+			<section class="grid gap-2 rounded-xl border bg-card p-4">
+				<h2 class="text-lg font-semibold">Import</h2>
+				<p class="text-sm text-muted-foreground">
+					Choose a CSV file with these columns: name, count, category, location, store and notes.
+					The count and notes columns are optional.
+				</p>
+				<p class="text-sm text-muted-foreground">
+					Squirrel skips a name that exists. It creates missing categories, locations and stores.
+				</p>
+				<form method="post" action="/import" enctype="multipart/form-data" class="grid gap-2">
+					<input
+						type="file"
+						name="file"
+						accept=".csv,text/csv"
+						required
+						aria-label="CSV file"
+						class="input h-11"
+					/>
+					<div>
+						<button type="submit" class="btn h-11">Import</button>
+					</div>
+				</form>
+			</section>
+		</div>
+	}
+}
+
+templ ImportDone(p Page, d ImportDoneData) {
+	@Layout(p) {
+		<div class="mx-auto grid max-w-xl gap-4">
+			<h1 class="text-xl font-semibold">Import done</h1>
+			<p>Added { plural(d.Result.Added, "item", "items") }.</p>
+			if len(d.Result.Skipped) > 0 {
+				<section class="grid gap-2">
+					<p>Skipped { plural(len(d.Result.Skipped), "row", "rows") }.</p>
+					<ul class="grid gap-1 text-sm">
+						for _, sk := range d.Result.Skipped {
+							<li class="rounded-xl border bg-card p-3">{ skipText(sk) }</li>
+						}
+					</ul>
+				</section>
+			}
+			<div class="flex flex-wrap gap-2">
+				<a href="/" class="btn h-11">Back to the list</a>
+				<a href="/transfer" class="btn h-11" data-variant="outline">Import another file</a>
+			</div>
+		</div>
+	}
+}
+
+func skipText(sk store.ImportSkip) string {
+	if sk.Name == "" {
+		return "Line " + itoa(sk.Line) + ": " + sk.Reason
+	}
+	return "Line " + itoa(sk.Line) + ", " + sk.Name + ": " + sk.Reason
+}

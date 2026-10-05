@@ -18,6 +18,8 @@ Squirrel does not decide when to buy more. You look at the counts and decide.
 - Every change is recorded. See the last 10 changes of an item and **undo** the latest one.
 - Categories, locations and stores are lists that you manage in the app.
 - Works on a phone and on a desktop. Add it to your home screen for a full-screen app.
+- A shopping list: the items with a count of 0, grouped by store.
+- Export your items to a CSV file, and import items from one.
 - A read-only JSON API for dashboards and home automation, for example Home Assistant.
 - One small container. One SQLite file. No internet needed at runtime.
 
@@ -110,6 +112,8 @@ docker compose start squirrel
 ```
 
 To restore, stop the container and unpack the archive into the volume.
+
+A CSV export is handy to move items or to edit them in a spreadsheet. It is not a full backup, because it has no history. Back up the `/data` volume for that.
 
 ## Health check
 
