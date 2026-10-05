@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -531,4 +532,158 @@ func TestUnknownRoute(t *testing.T) {
 	a := newApp(t)
 	a.get("/nope").wantStatus(t, http.StatusNotFound)
 	a.get("/items/abc").wantStatus(t, http.StatusNotFound)
+}
+
+type apiItemJSON struct {
+	ID        int64   `json:"id"`
+	Name      string  `json:"name"`
+	Count     int     `json:"count"`
+	Category  *string `json:"category"`
+	Location  *string `json:"location"`
+	Store     *string `json:"store"`
+	Notes     string  `json:"notes"`
+	UpdatedAt string  `json:"updated_at"`
+}
+
+func (r resp) wantJSON(t *testing.T, status int) {
+	t.Helper()
+	r.wantStatus(t, status)
+	if ct := r.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	if cc := r.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("Cache-Control = %q, want no-store", cc)
+	}
+}
+
+func (r resp) apiNames(t *testing.T) []string {
+	t.Helper()
+	r.wantJSON(t, http.StatusOK)
+	var out struct {
+		Items []apiItemJSON `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(r.body), &out); err != nil {
+		t.Fatalf("bad JSON: %v; body:\n%s", err, r.body)
+	}
+	names := []string{}
+	for _, it := range out.Items {
+		names = append(names, it.Name)
+	}
+	return names
+}
+
+func (r resp) wantAPIError(t *testing.T, status int, msg string) {
+	t.Helper()
+	r.wantJSON(t, status)
+	var e struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(r.body), &e); err != nil || e.Error != msg {
+		t.Fatalf("error body = %q, want error %q", r.body, msg)
+	}
+	r.lacks(t, "<html")
+}
+
+func TestAPIItems(t *testing.T) {
+	a := newApp(t)
+	ctx := context.Background()
+
+	a.get("/api/items").contains(t, `"items":[]`)
+
+	food, garage, costco := a.seed()
+	tools, err := a.store.CreateListValue(ctx, store.Categories, "Tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shed, err := a.store.CreateListValue(ctx, store.Locations, "Shed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	aldi, err := a.store.CreateListValue(ctx, store.Stores, "Aldi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.item("Cocoa", 5, food, garage, costco)
+	a.item("Apples", 9, food, shed, aldi)
+	a.item("Beans", 1, tools, garage, costco)
+	a.item("Dust", 2, tools, shed, aldi)
+
+	r := a.get("/api/items")
+	r.wantJSON(t, http.StatusOK)
+	var out struct {
+		Items []apiItemJSON `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(r.body), &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Items) != 4 || out.Items[0].Name != "Apples" {
+		t.Fatalf("items = %+v", out.Items)
+	}
+	apples := out.Items[0]
+	if apples.Count != 9 || apples.Category == nil || *apples.Category != "Food" ||
+		apples.Location == nil || *apples.Location != "Shed" || apples.Store == nil || *apples.Store != "Aldi" {
+		t.Errorf("apples = %+v", apples)
+	}
+	if _, err := time.Parse(time.RFC3339, apples.UpdatedAt); err != nil || !strings.HasSuffix(apples.UpdatedAt, "Z") {
+		t.Errorf("updated_at = %q, want RFC 3339 UTC", apples.UpdatedAt)
+	}
+
+	check := func(target string, want ...string) {
+		t.Helper()
+		got := a.get(target).apiNames(t)
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("%s = %v, want %v", target, got, want)
+		}
+	}
+	check("/api/items?q=coc", "Cocoa")
+	check("/api/items?category="+id(food), "Apples", "Cocoa")
+	check("/api/items?category=none")
+	check("/api/items?location="+id(garage), "Beans", "Cocoa")
+	check("/api/items?store="+id(costco), "Beans", "Cocoa")
+	check("/api/items?category="+id(tools)+"&location="+id(shed), "Dust")
+	check("/api/items?sort=count", "Beans", "Dust", "Cocoa", "Apples")
+	check("/api/items?sort=bogus", "Apples", "Beans", "Cocoa", "Dust")
+
+	for _, bad := range []string{"category=abc", "category=-1", "location=x", "store=1.5"} {
+		a.get("/api/items?"+bad).wantJSON(t, http.StatusBadRequest)
+	}
+	a.get("/api/items?category=abc").wantAPIError(t, http.StatusBadRequest, "Invalid category.")
+
+	// A deleted list value leaves the field null.
+	if err := a.store.DeleteListValue(ctx, store.Categories, tools); err != nil {
+		t.Fatal(err)
+	}
+	a.get("/api/items?q=beans").contains(t, `"category":null`)
+	check("/api/items?category=none", "Beans", "Dust")
+}
+
+func TestAPIItem(t *testing.T) {
+	a := newApp(t)
+	food, garage, costco := a.seed()
+	it := a.item("Cocoa", 5, food, garage, costco)
+
+	r := a.get("/api/items/" + id(it.ID))
+	r.wantJSON(t, http.StatusOK)
+	var got apiItemJSON
+	if err := json.Unmarshal([]byte(r.body), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != it.ID || got.Name != "Cocoa" || got.Count != 5 ||
+		got.Category == nil || *got.Category != "Food" ||
+		got.Location == nil || *got.Location != "Garage" ||
+		got.Store == nil || *got.Store != "Costco" {
+		t.Errorf("item = %+v", got)
+	}
+
+	a.get("/api/items/9999").wantAPIError(t, http.StatusNotFound, "Not found.")
+	a.get("/api/items/abc").wantAPIError(t, http.StatusNotFound, "Not found.")
+	a.get("/api/nothing").wantAPIError(t, http.StatusNotFound, "Not found.")
+
+	for _, target := range []string{"/api/items", "/api/items/" + id(it.ID)} {
+		r := a.post(target, nil)
+		r.wantAPIError(t, http.StatusMethodNotAllowed, "Method not allowed.")
+		if al := r.Header().Get("Allow"); al != "GET, HEAD" {
+			t.Errorf("Allow = %q", al)
+		}
+	}
 }
