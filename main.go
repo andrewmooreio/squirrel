@@ -87,7 +87,7 @@ func run() error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
-	log.Printf("squirrel %s: listening on %s, database %s", version.Version, cfg.Addr(), cfg.DBPath)
+	log.Printf("squirrel %s: listening on %s, database %s", version.String(), cfg.Addr(), cfg.DBPath)
 
 	select {
 	case err := <-errc:

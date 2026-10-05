@@ -92,7 +92,7 @@ func New(st *store.Store) http.Handler {
 }
 
 func (s *server) page(title, nav string) views.Page {
-	return views.Page{Title: title + " · Squirrel", Nav: nav, Ver: s.ver, Version: version.Version}
+	return views.Page{Title: title + " · Squirrel", Nav: nav, Ver: s.ver, Version: version.String()}
 }
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, status int, c templ.Component) {

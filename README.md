@@ -119,7 +119,7 @@ Images are built for `linux/amd64` and `linux/arm64`. They run on a server, a NA
 
 To avoid surprises, pin to `1` or `1.2`. Read the [changelog](CHANGELOG.md) before you upgrade. Database changes run by themselves when the container starts.
 
-The version shows at the bottom of every page. An `edge` image shows `edge-` and the commit.
+The version shows at the bottom of every page, for example `v1.1.0`. An `edge` image shows `edge-` and the commit.
 
 ## Backups
 
