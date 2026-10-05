@@ -7,7 +7,7 @@ You buy toothpaste, tinned tomatoes and fruit & nut mix in bulk, and you put it 
 Squirrel does not decide when to buy more. You look at the counts and decide.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="Squirrel on a phone. Links to the shopping list and Manage lists at the top, then search, filters and a sort menu. Below is a list of household items such as basmati rice, bin bags and olive oil, each with a cart button, a −1 button, a count and a +1 button. Olive oil and shampoo are on the shopping list." width="320">
+  <img src="docs/screenshot.png" alt="Squirrel on a phone. Links to the shopping list and Manage lists at the top, then search, filters and a sort menu. Below is a list of household items such as basmati rice, bin bags and olive oil, each with a cart button, a −1 button, a count and a +1 button. Olive oil and shampoo are on the shopping list, so their cart buttons are orange." width="320">
 </p>
 
 ## Features

@@ -208,9 +208,7 @@ templ Row(it store.Item, msg string) {
 	<li id={ rowID(it.ID) } class="flex min-w-0 items-center gap-2 rounded-xl border bg-card p-3 text-card-foreground">
 		<div class="min-w-0 flex-1">
 			<a href={ templ.SafeURL(itemURL(it.ID)) } class="block truncate font-medium">{ it.Name }</a>
-			<p class="truncate text-sm text-muted-foreground">{ orDash(it.LocationName) }if it.OnList {
-				{ " · On the list" }
-			}</p>
+			<p class="truncate text-sm text-muted-foreground">{ orDash(it.LocationName) }</p>
 			if msg != "" {
 				<p class="text-sm text-destructive" role="alert">{ msg }</p>
 			}
@@ -227,21 +225,29 @@ templ Row(it store.Item, msg string) {
 				<input type="hidden" name="on" value={ onValue(!it.OnList) }/>
 				<button
 					type="submit"
-					class="btn size-11"
-					if it.OnList {
-						data-variant="secondary"
-					} else {
-						data-variant="ghost"
-					}
+					data-variant="outline"
 					data-size="icon-lg"
 					aria-pressed={ boolStr(it.OnList) }
 					if it.OnList {
+						class="btn size-12 border-orange-500 bg-orange-500 text-white hover:bg-orange-600 dark:border-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600"
 						aria-label={ "Take " + it.Name + " off the shopping list" }
+						title="On the shopping list. Tap to take it off."
 					} else {
+						class="btn size-12 text-muted-foreground"
 						aria-label={ "Add " + it.Name + " to the shopping list" }
+						title="Add to the shopping list"
 					}
 				>
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-5" aria-hidden="true"><circle cx="9" cy="20" r="1.5"></circle><circle cx="18" cy="20" r="1.5"></circle><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.4a1 1 0 0 0 1-.8L21 7H6"></path></svg>
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-6" aria-hidden="true">
+						<circle cx="9" cy="20" r="1.5"></circle>
+						<circle cx="18" cy="20" r="1.5"></circle>
+						<path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.4a1 1 0 0 0 1-.8L21 7H6"></path>
+						if it.OnList {
+							<path d="m10.5 11 2 2 4-4"></path>
+						} else {
+							<path d="M13.5 8.5v5M11 11h5"></path>
+						}
+					</svg>
 				</button>
 			</form>
 			<form
