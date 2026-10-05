@@ -2,8 +2,6 @@
 
 Squirrel is a self-hosted web app that counts household stock. Go `net/http`, templ, HTMX, Tailwind with Basecoat, and SQLite. One binary with every asset embedded.
 
-Read [SPEC.md](SPEC.md) before you change behaviour. It is the source of truth for data rules, HTTP behaviour, test seams and what is out of scope. If a change disagrees with the spec, update the spec in the same change.
-
 ## Build and test
 
 The `Makefile` holds the commands. Two of them carry a trap:

@@ -126,7 +126,7 @@ make generate   # run templ generate (commit the result)
 make css        # rebuild the stylesheet
 ```
 
-The stack is Go (`net/http`), [templ](https://templ.guide), [HTMX](https://htmx.org), [Tailwind CSS](https://tailwindcss.com) with [Basecoat](https://basecoatui.com), and SQLite through [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite). All assets are embedded in the binary. The full design is in [SPEC.md](SPEC.md).
+The stack is Go (`net/http`), [templ](https://templ.guide), [HTMX](https://htmx.org), [Tailwind CSS](https://tailwindcss.com) with [Basecoat](https://basecoatui.com), and SQLite through [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite). All assets are embedded in the binary.
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org). Releases and version numbers come from them through [release-please](https://github.com/googleapis/release-please).
 
