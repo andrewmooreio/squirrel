@@ -115,7 +115,8 @@ Images are built for `linux/amd64` and `linux/arm64`. They run on a server, a NA
 | `1`                 | The newest `1.x.x` release                     |
 | `latest`            | The newest release                             |
 | `edge`              | The newest commit on `main`, not yet released  |
-| `sha-<short>`       | One exact commit on `main`                     |
+
+Only the newest `edge` image is kept. To run an exact commit, build it from source.
 
 To avoid surprises, pin to `1` or `1.2`. Read the [changelog](CHANGELOG.md) before you upgrade. Database changes run by themselves when the container starts.
 
