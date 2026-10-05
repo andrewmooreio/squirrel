@@ -17,6 +17,7 @@ import (
 
 	"github.com/andrewmooreio/squirrel/internal/config"
 	"github.com/andrewmooreio/squirrel/internal/store"
+	"github.com/andrewmooreio/squirrel/internal/version"
 	"github.com/andrewmooreio/squirrel/internal/web"
 )
 
@@ -86,7 +87,7 @@ func run() error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
-	log.Printf("squirrel: listening on %s, database %s", cfg.Addr(), cfg.DBPath)
+	log.Printf("squirrel %s: listening on %s, database %s", version.Version, cfg.Addr(), cfg.DBPath)
 
 	select {
 	case err := <-errc:

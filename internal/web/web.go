@@ -16,6 +16,7 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/andrewmooreio/squirrel/internal/store"
+	"github.com/andrewmooreio/squirrel/internal/version"
 	"github.com/andrewmooreio/squirrel/internal/web/views"
 )
 
@@ -91,7 +92,7 @@ func New(st *store.Store) http.Handler {
 }
 
 func (s *server) page(title, nav string) views.Page {
-	return views.Page{Title: title + " · Squirrel", Nav: nav, Ver: s.ver}
+	return views.Page{Title: title + " · Squirrel", Nav: nav, Ver: s.ver, Version: version.Version}
 }
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, status int, c templ.Component) {
