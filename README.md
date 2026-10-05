@@ -6,6 +6,10 @@ You buy toothpaste, tinned tomatoes and fruit & nut mix in bulk, and you put it 
 
 Squirrel does not decide when to buy more. You look at the counts and decide.
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="Squirrel on a phone. A list of household items such as basmati rice, bin bags and olive oil, each with a −1 button, a count and a +1 button." width="320">
+</p>
+
 ## Features
 
 - A list of items with large **−1** and **+1** buttons, made for one hand on a phone.
