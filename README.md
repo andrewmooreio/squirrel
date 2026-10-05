@@ -7,7 +7,7 @@ You buy toothpaste, tinned tomatoes and fruit & nut mix in bulk, and you put it 
 Squirrel does not decide when to buy more. You look at the counts and decide.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="Squirrel on a phone. Links to the shopping list and Manage lists at the top, then search, filters and a sort menu. Below is a list of household items such as basmati rice, bin bags and olive oil, each with a −1 button, a count and a +1 button." width="320">
+  <img src="docs/screenshot.png" alt="Squirrel on a phone. Links to the shopping list and Manage lists at the top, then search, filters and a sort menu. Below is a list of household items such as basmati rice, bin bags and olive oil, each with a cart button, a −1 button, a count and a +1 button. Olive oil and shampoo are on the shopping list." width="320">
 </p>
 
 ## Features
@@ -16,7 +16,7 @@ Squirrel does not decide when to buy more. You look at the counts and decide.
 - Tap a count to type an exact number.
 - Tabs for **All** and for each category, plus search and filters for location and store.
 - Sort from A to Z or Z to A, by lowest count first, or by the most recent change.
-- A **Shopping list** page shows the items with a count of 0, grouped by store.
+- A **Shopping list**. Tap the cart on an item to add it. Tap it again when you buy it. The list groups items by store.
 - Every change is recorded. See the last 10 changes of an item and **undo** the latest one.
 - Categories, locations and stores are lists that you manage in the app.
 - Export your items to a CSV file, and import items from one.
@@ -165,6 +165,7 @@ Squirrel has a read-only JSON API. Use it for dashboards and home automation. It
 | `location` | A location id                                                                             |
 | `store`    | A store id                                                                                |
 | `sort`     | `name-desc` (Z to A), `count` (lowest first) or `updated` (newest first). Default: A to Z |
+| `on_list`  | `1` for items on the shopping list, `0` for items off it                                  |
 
 To find an id, use the main page. Click a category tab, or choose a location or store filter. The address bar then shows the id, for example `?tab=3`, `?loc=2` or `?store=1`. The id of an item is in the address of its page, for example `/items/7`.
 
@@ -183,6 +184,7 @@ curl 'http://localhost:8080/api/items?sort=count'
       "location": "Garage",
       "store": "Costco",
       "notes": "",
+      "on_list": false,
       "updated_at": "2026-10-05T09:40:33Z"
     }
   ]

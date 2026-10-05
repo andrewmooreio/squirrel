@@ -13,7 +13,7 @@ import (
 const noStore = "No store"
 
 func (s *server) shopping(w http.ResponseWriter, r *http.Request) {
-	items, err := s.store.ListItems(r.Context(), store.ItemFilter{OutOfStock: true})
+	items, err := s.store.ListItems(r.Context(), store.ItemFilter{List: store.ListOn})
 	if err != nil {
 		s.fail(w, r, err)
 		return

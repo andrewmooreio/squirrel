@@ -21,6 +21,7 @@ type apiItem struct {
 	Location  *string   `json:"location"`
 	Store     *string   `json:"store"`
 	Notes     string    `json:"notes"`
+	OnList    bool      `json:"on_list"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -33,6 +34,7 @@ func newAPIItem(it store.Item) apiItem {
 		Location:  nullable(it.LocationName),
 		Store:     nullable(it.StoreName),
 		Notes:     it.Notes,
+		OnList:    it.OnList,
 		UpdatedAt: it.UpdatedAt.UTC(),
 	}
 }
@@ -86,6 +88,16 @@ func (s *server) apiItems(w http.ResponseWriter, r *http.Request) {
 	}
 	if f.StoreID, ok = apiID(r, "store"); !ok {
 		apiError(w, http.StatusBadRequest, "Invalid store.")
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(q.Get("on_list"))) {
+	case "":
+	case "1", "true":
+		f.List = store.ListOn
+	case "0", "false":
+		f.List = store.ListOff
+	default:
+		apiError(w, http.StatusBadRequest, "Invalid on_list.")
 		return
 	}
 	items, err := s.store.ListItems(r.Context(), f)

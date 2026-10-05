@@ -64,6 +64,7 @@ func New(st *store.Store) http.Handler {
 	mux.HandleFunc("POST /items/{id}/delete", s.deleteItem)
 	mux.HandleFunc("POST /items/{id}/adjust", s.adjustItem)
 	mux.HandleFunc("POST /items/{id}/count", s.setCount)
+	mux.HandleFunc("POST /items/{id}/list", s.setOnList)
 	mux.HandleFunc("POST /items/{id}/undo", s.undoItem)
 
 	mux.HandleFunc("GET /lists", func(w http.ResponseWriter, r *http.Request) {

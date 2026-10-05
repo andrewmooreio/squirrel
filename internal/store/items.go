@@ -21,8 +21,10 @@ type Item struct {
 	StoreID      int64
 	StoreName    string
 	Notes        string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	// OnList is true when the item is on the shopping list.
+	OnList    bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // ItemInput holds the editable fields of an item. Count is used only by
@@ -43,12 +45,24 @@ type ItemFilter struct {
 	LocationID    int64
 	StoreID       int64
 	Search        string
-	// OutOfStock keeps only the items with a count of 0.
-	OutOfStock bool
+	// List keeps the items that are on, or off, the shopping list.
+	List ListFilter
 	// Sort picks the order of the result. Use SortName, SortNameDesc,
 	// SortCount or SortUpdated. Any other value sorts by name.
 	Sort string
 }
+
+// ListFilter narrows ListItems by the shopping list flag.
+type ListFilter int
+
+const (
+	// ListAny keeps every item. It is the zero value.
+	ListAny ListFilter = iota
+	// ListOn keeps only the items on the shopping list.
+	ListOn
+	// ListOff keeps only the items that are not on the shopping list.
+	ListOff
+)
 
 // Sort orders for ItemFilter.Sort.
 const (
@@ -75,7 +89,7 @@ const itemSelect = `
 	       coalesce(i.category_id, 0), coalesce(c.name, ''),
 	       coalesce(i.location_id, 0), coalesce(l.name, ''),
 	       coalesce(i.store_id, 0), coalesce(s.name, ''),
-	       i.notes, i.created_at, i.updated_at
+	       i.notes, i.on_list, i.created_at, i.updated_at
 	FROM items i
 	LEFT JOIN categories c ON c.id = i.category_id
 	LEFT JOIN locations l ON l.id = i.location_id
@@ -90,7 +104,7 @@ func scanItem(r scanner) (Item, error) {
 		&it.CategoryID, &it.CategoryName,
 		&it.LocationID, &it.LocationName,
 		&it.StoreID, &it.StoreName,
-		&it.Notes, &created, &updated)
+		&it.Notes, &it.OnList, &created, &updated)
 	if err != nil {
 		return Item{}, err
 	}
@@ -117,8 +131,11 @@ func (s *Store) ListItems(ctx context.Context, f ItemFilter) ([]Item, error) {
 		where = append(where, "i.store_id = ?")
 		args = append(args, f.StoreID)
 	}
-	if f.OutOfStock {
-		where = append(where, "i.count = 0")
+	switch f.List {
+	case ListOn:
+		where = append(where, "i.on_list = 1")
+	case ListOff:
+		where = append(where, "i.on_list = 0")
 	}
 	if q := strings.TrimSpace(f.Search); q != "" {
 		where = append(where, `i.name LIKE ? ESCAPE '\'`)
@@ -225,6 +242,21 @@ func (s *Store) UpdateItem(ctx context.Context, id int64, in ItemInput) (Item, e
 		in.Name, in.CategoryID, in.LocationID, in.StoreID, in.Notes, now(), id)
 	if err != nil {
 		return Item{}, mapErr(err)
+	}
+	if err := mustAffect(res); err != nil {
+		return Item{}, err
+	}
+	return s.GetItem(ctx, id)
+}
+
+// SetOnList adds the item to the shopping list or takes it off. Squirrel
+// never changes the flag by itself. It does not change updated_at, so the
+// "recently changed" sort still follows count and field edits only, and it
+// records no change in the history. It returns ErrNotFound for an unknown id.
+func (s *Store) SetOnList(ctx context.Context, id int64, on bool) (Item, error) {
+	res, err := s.db.ExecContext(ctx, `UPDATE items SET on_list = ? WHERE id = ?`, on, id)
+	if err != nil {
+		return Item{}, err
 	}
 	if err := mustAffect(res); err != nil {
 		return Item{}, err
