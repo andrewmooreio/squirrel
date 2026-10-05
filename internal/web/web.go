@@ -68,7 +68,14 @@ func New(st *store.Store) http.Handler {
 	mux.HandleFunc("POST /lists/{kind}/{id}/delete", s.deleteListValue)
 
 	mux.HandleFunc("/", s.notFound)
-	return s.recoverer(mux)
+
+	// Refuse changes sent from another website, so a page the user visits
+	// cannot change stock through their browser.
+	cop := http.NewCrossOriginProtection()
+	cop.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.message(w, r, http.StatusForbidden, "Request refused", "This change came from another website. Make the change in Squirrel.")
+	}))
+	return s.recoverer(cop.Handler(mux))
 }
 
 func (s *server) page(title, nav string) views.Page {

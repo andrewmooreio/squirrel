@@ -459,6 +459,23 @@ func TestDeletedListValueShowsDash(t *testing.T) {
 	a.get("/items/"+id(it.ID)).contains(t, "—")
 }
 
+func TestCrossOriginPostsAreRefused(t *testing.T) {
+	a := newApp(t)
+	food, loc, shop := a.seed()
+	it := a.item("Tomatoes", 2, food, loc, shop)
+	path := "/items/" + id(it.ID)
+
+	r := a.post(path+"/delete", nil, "Sec-Fetch-Site", "cross-site")
+	r.wantStatus(t, http.StatusForbidden)
+	r.contains(t, "another website")
+	a.post(path+"/delete", nil, "Origin", "http://evil.example").wantStatus(t, http.StatusForbidden)
+	a.get(path).wantStatus(t, 200)
+
+	// Reads from other sites still work, and so do our own posts.
+	a.get(path, "Sec-Fetch-Site", "cross-site").wantStatus(t, 200)
+	a.post(path+"/delete", nil, "Sec-Fetch-Site", "same-origin").wantRedirect(t, "/")
+}
+
 func TestUnknownRoute(t *testing.T) {
 	a := newApp(t)
 	a.get("/nope").wantStatus(t, http.StatusNotFound)
