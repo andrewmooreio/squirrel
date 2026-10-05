@@ -1,9 +1,12 @@
 package web_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -92,6 +95,31 @@ func (a *app) get(target string, hdr ...string) resp { return a.do("GET", target
 
 func (a *app) post(target string, form url.Values, hdr ...string) resp {
 	return a.do("POST", target, form, hdr...)
+}
+
+// upload posts a multipart form with one file part.
+func (a *app) upload(target, field, filename, body string, hdr ...string) resp {
+	a.t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, err := mw.CreateFormFile(field, filename)
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	if _, err := io.WriteString(fw, body); err != nil {
+		a.t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		a.t.Fatal(err)
+	}
+	req := httptest.NewRequest("POST", target, &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	for i := 0; i+1 < len(hdr); i += 2 {
+		req.Header.Set(hdr[i], hdr[i+1])
+	}
+	rec := httptest.NewRecorder()
+	a.h.ServeHTTP(rec, req)
+	return resp{rec, rec.Body.String()}
 }
 
 var htmx = []string{"HX-Request", "true"}
@@ -751,5 +779,181 @@ func TestShoppingList(t *testing.T) {
 	r = a.get("/shopping")
 	if !regexp.MustCompile(`href="/shopping"[^>]*data-variant="secondary"`).MatchString(r.body) {
 		t.Errorf("Shopping list link is not current; body:\n%s", r.body)
+	}
+}
+
+func TestExportCSV(t *testing.T) {
+	a := newApp(t)
+	cat, loc, shop := a.seed()
+	a.item("Rice", 3, cat, loc, shop)
+	nasty := "Line one, with a comma\nand \"quotes\""
+	it := a.item("Beans", 0, cat, loc, shop)
+	if _, err := a.store.UpdateItem(context.Background(), it.ID, store.ItemInput{
+		Name: "Beans", CategoryID: cat, LocationID: loc, StoreID: shop, Notes: nasty,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	r := a.get("/export.csv")
+	r.wantStatus(t, 200)
+	if got := r.Header().Get("Content-Type"); got != "text/csv; charset=utf-8" {
+		t.Errorf("content type = %q", got)
+	}
+	if got := r.Header().Get("Content-Disposition"); !strings.HasPrefix(got, `attachment; filename="squirrel-items-`) {
+		t.Errorf("content disposition = %q", got)
+	}
+	if got := r.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("cache control = %q", got)
+	}
+
+	recs, err := csv.NewReader(strings.NewReader(r.body)).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"name", "count", "category", "location", "store", "notes"},
+		{"Beans", "0", "Food", "Garage", "Costco", nasty},
+		{"Rice", "3", "Food", "Garage", "Costco", ""},
+	}
+	if len(recs) != len(want) {
+		t.Fatalf("rows = %v, want %v", recs, want)
+	}
+	for i := range want {
+		if strings.Join(recs[i], "|") != strings.Join(want[i], "|") {
+			t.Errorf("row %d = %q, want %q", i, recs[i], want[i])
+		}
+	}
+}
+
+func TestTransferPage(t *testing.T) {
+	a := newApp(t)
+	a.get("/transfer").contains(t, "Import and export", `href="/export.csv"`, `action="/import"`, `enctype="multipart/form-data"`, `name="file"`)
+	a.get("/lists/categories").contains(t, `href="/transfer"`)
+}
+
+func TestImportCSV(t *testing.T) {
+	a := newApp(t)
+	ctx := context.Background()
+	cat, loc, shop := a.seed()
+	a.item("Rice", 1, cat, loc, shop)
+
+	file := "name,count,category,location,store,notes\n" +
+		"Beans,4,food,Garage,Aldi,Tinned\n" + // line 2: new item, reuses Food, new store
+		"rice,2,Food,Garage,Costco,\n" + // line 3: exists
+		"Flour,,Food,Garage,Aldi,\n" + // line 4: blank count is 0
+		"BEANS,1,Food,Garage,Aldi,\n" + // line 5: duplicate in file
+		"Salt,1,,Garage,Aldi,\n" + // line 6: no category
+		"Pepper,abc,Food,Garage,Aldi,\n" + // line 7: bad count
+		",,,,,\n" + // blank row, ignored
+		"Oil,2,Food,Shed,Aldi,\n" // line 9: new location
+	r := a.upload("/import", "file", "items.csv", file)
+	r.wantStatus(t, 200)
+	r.contains(t, "Import done", "Added 3 items.", "Skipped 4 rows.",
+		"Line 3, rice: An item with this name exists. Squirrel did not change it.",
+		"Line 5, BEANS: An item with this name exists. Squirrel did not change it.",
+		"Line 6, Salt: Enter a category.",
+		"Line 7, Pepper: Enter a whole number of 0 or more.",
+		"Back to the list", "Import another file")
+
+	home := a.get("/")
+	home.contains(t, "Beans", "Flour", "Oil")
+	home.lacks(t, "Salt", "Pepper")
+	a.get("/lists/stores").contains(t, "Aldi")
+	a.get("/lists/locations").contains(t, "Shed")
+	cats := a.get("/lists/categories")
+	if n := strings.Count(cats.body, "Food"); n == 0 || strings.Contains(cats.body, ">food<") || strings.Contains(cats.body, `value="food"`) {
+		t.Errorf("categories list has a duplicate or missing Food; body:\n%s", cats.body)
+	}
+	if vals, _ := a.store.Lists(ctx, store.Categories); len(vals) != 1 {
+		t.Errorf("categories = %+v, want 1", vals)
+	}
+
+	items, _ := a.store.ListItems(ctx, store.ItemFilter{Search: "Beans"})
+	if len(items) != 1 || items[0].Count != 4 || items[0].Notes != "Tinned" {
+		t.Fatalf("beans = %+v", items)
+	}
+	a.get("/items/"+id(items[0].ID)).contains(t, "History", "+4")
+	flour, _ := a.store.ListItems(ctx, store.ItemFilter{Search: "Flour"})
+	if hist, _ := a.store.History(ctx, flour[0].ID, 10); len(hist) != 0 {
+		t.Errorf("flour history = %+v, want none", hist)
+	}
+	if rice, _ := a.store.ListItems(ctx, store.ItemFilter{Search: "rice"}); len(rice) != 1 || rice[0].Count != 1 {
+		t.Errorf("rice changed: %+v", rice)
+	}
+}
+
+func TestImportCSVSingular(t *testing.T) {
+	a := newApp(t)
+	r := a.upload("/import", "file", "items.csv", "name,category,location,store\nRice,A,B,C\n")
+	r.wantStatus(t, 200)
+	r.contains(t, "Added 1 item.")
+	r.lacks(t, "Skipped")
+}
+
+func TestImportCSVQuotedNewlineLine(t *testing.T) {
+	a := newApp(t)
+	file := "name,count,category,location,store,notes\n" +
+		"Rice,1,A,B,C,\"two\nlines\"\n" +
+		",1,A,B,C,\n"
+	r := a.upload("/import", "file", "items.csv", file)
+	r.wantStatus(t, 200)
+	r.contains(t, "Line 4: Enter a name.")
+}
+
+func TestImportCSVMissingColumn(t *testing.T) {
+	a := newApp(t)
+	r := a.upload("/import", "file", "items.csv", "name,category,location\nRice,A,B\n")
+	r.wantStatus(t, http.StatusUnprocessableEntity)
+	r.contains(t, "The file needs these columns: name, category, location, store.")
+	a.get("/").lacks(t, "Rice")
+	if items, _ := a.store.ListItems(context.Background(), store.ItemFilter{}); len(items) != 0 {
+		t.Errorf("items = %+v, want none", items)
+	}
+}
+
+func TestImportCSVBOMAndHeaderOrder(t *testing.T) {
+	a := newApp(t)
+	file := "\ufeff Store ,NAME,Location,Category,Extra,Count\nAldi,Rice,Garage,Food,x,5\n"
+	r := a.upload("/import", "file", "items.csv", file)
+	r.wantStatus(t, 200)
+	r.contains(t, "Added 1 item.")
+	items, _ := a.store.ListItems(context.Background(), store.ItemFilter{})
+	if len(items) != 1 || items[0].Count != 5 || items[0].StoreName != "Aldi" || items[0].CategoryName != "Food" {
+		t.Errorf("items = %+v", items)
+	}
+}
+
+func TestImportCSVBadRequests(t *testing.T) {
+	a := newApp(t)
+	r := a.upload("/import", "other", "items.csv", "name\n")
+	r.wantStatus(t, http.StatusBadRequest)
+	r.contains(t, "Choose a CSV file.")
+	a.post("/import", url.Values{"x": {"y"}}).wantStatus(t, http.StatusBadRequest)
+	r = a.upload("/import", "file", "items.csv", "name,category,location,store\nRice,\"A,B,C\n")
+	r.wantStatus(t, http.StatusUnprocessableEntity)
+	r.contains(t, "Squirrel cannot read this file. Check that it is a CSV file.")
+	r = a.upload("/import", "file", "items.csv", strings.Repeat("x", 2<<20))
+	r.wantStatus(t, http.StatusRequestEntityTooLarge)
+	r.contains(t, "The file is too big. Use a file of 1 MB or less.")
+}
+
+func TestExportImportRoundTrip(t *testing.T) {
+	a := newApp(t)
+	cat, loc, shop := a.seed()
+	a.item("Rice", 3, cat, loc, shop)
+	it := a.item("Beans", 0, cat, loc, shop)
+	if _, err := a.store.UpdateItem(context.Background(), it.ID, store.ItemInput{
+		Name: "Beans", CategoryID: cat, LocationID: loc, StoreID: shop, Notes: "a, \"b\"\nc",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first := a.get("/export.csv").body
+
+	b := newApp(t)
+	r := b.upload("/import", "file", "items.csv", first)
+	r.wantStatus(t, 200)
+	r.contains(t, "Added 2 items.")
+	if second := b.get("/export.csv").body; second != first {
+		t.Errorf("exports differ:\n%s\nvs\n%s", first, second)
 	}
 }

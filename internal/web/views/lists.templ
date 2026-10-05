@@ -16,7 +16,10 @@ type ListsData struct {
 templ Lists(p Page, d ListsData) {
 	@Layout(p) {
 		<div class="mx-auto grid max-w-xl gap-4">
-			<h1 class="text-xl font-semibold">Manage lists</h1>
+			<div class="flex items-center justify-between gap-2">
+				<h1 class="text-xl font-semibold">Manage lists</h1>
+				<a href="/transfer" class="btn whitespace-nowrap" data-variant="outline" data-size="sm">Import and export</a>
+			</div>
 			<nav aria-label="Lists" class="tab-scroll">
 				<div class="tabs">
 					<div role="tablist" aria-orientation="horizontal" data-variant="line" class="min-w-max">
