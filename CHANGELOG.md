@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/andrewmooreio/squirrel/compare/v1.0.0...v1.0.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* refuse changes sent from other websites ([#6](https://github.com/andrewmooreio/squirrel/issues/6)) ([0ddb548](https://github.com/andrewmooreio/squirrel/commit/0ddb54858721825f9c1d95c2a1f5c8017e6d73b2))
+
 ## 1.0.0 (2026-10-04)
 
 
