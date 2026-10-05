@@ -24,7 +24,7 @@ The app vendors **HTMX 4**, not HTMX 2. Event names and some attributes differ, 
 ## Code layout
 
 - `internal/store` is the only package that talks to SQLite. Every data rule lives here: atomic adjust, the count floor of zero, undo, list deletes. It returns typed errors (`ErrNotFound`, `ErrDuplicate`, `ErrBelowZero`, `*ValidationError`).
-- `internal/web` handlers are thin: parse the request, call the store, render. Each action answers two ways: an HTMX request gets a fragment, a plain form post gets a redirect or a full page. Keep both paths working.
+- `internal/web` handlers are thin: parse the request, call the store, render. Each action answers two ways: an HTMX request gets a fragment, a plain form post gets a redirect or a full page. Keep both paths working. Two exceptions answer one way only: the read-only JSON API under `/api/` always answers JSON, and `POST /import` (a file upload) always answers a full page.
 - Schema changes go in a new file `internal/store/migrations/NNNN_name.sql`. Applied migrations are frozen; the version is tracked in `PRAGMA user_version`.
 
 ## Tests

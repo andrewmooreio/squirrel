@@ -7,7 +7,7 @@ You buy toothpaste, tinned tomatoes and fruit & nut mix in bulk, and you put it 
 Squirrel does not decide when to buy more. You look at the counts and decide.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="Squirrel on a phone. A list of household items such as basmati rice, bin bags and olive oil, each with a −1 button, a count and a +1 button." width="320">
+  <img src="docs/screenshot.png" alt="Squirrel on a phone. Links to the shopping list and Manage lists at the top, then search, filters and a sort menu. Below is a list of household items such as basmati rice, bin bags and olive oil, each with a −1 button, a count and a +1 button." width="320">
 </p>
 
 ## Features
@@ -15,11 +15,12 @@ Squirrel does not decide when to buy more. You look at the counts and decide.
 - A list of items with large **−1** and **+1** buttons, made for one hand on a phone.
 - Tap a count to type an exact number.
 - Tabs for **All** and for each category, plus search and filters for location and store.
+- Sort by name, by lowest count first, or by the most recent change.
+- A **Shopping list** page shows the items with a count of 0, grouped by store.
 - Every change is recorded. See the last 10 changes of an item and **undo** the latest one.
 - Categories, locations and stores are lists that you manage in the app.
-- Works on a phone and on a desktop. Add it to your home screen for a full-screen app.
-- A shopping list: the items with a count of 0, grouped by store.
 - Export your items to a CSV file, and import items from one.
+- Works on a phone and on a desktop. Add it to your home screen for a full-screen app.
 - A read-only JSON API for dashboards and home automation, for example Home Assistant.
 - One small container. One SQLite file. No internet needed at runtime.
 
@@ -69,6 +70,28 @@ Open <http://localhost:8080>.
 
 Squirrel starts empty. Before you add an item, open **Manage lists** and create at least one category, one location and one store. Then add your first item.
 
+If your items are in a spreadsheet, import them instead. Read [Import and export](#import-and-export).
+
+## Import and export
+
+Open **Manage lists**, then **Import and export**.
+
+**Export CSV** downloads every item. Use it to move your items to a new install or to edit them in a spreadsheet.
+
+To import, choose a CSV file of 1 MB or less. The first row names the columns:
+
+```csv
+name,count,category,location,store,notes
+Tinned tomatoes,24,Food,Pantry,Costco,
+Bin bags,9,Cleaning,Under the stairs,Costco,Black ones
+```
+
+- `name`, `category`, `location` and `store` are required. `count` and `notes` are optional. A blank count is 0.
+- The columns can be in any order. Squirrel ignores other columns.
+- Squirrel creates a category, location or store that does not exist yet.
+- An import only adds items. If an item with the same name exists, Squirrel skips the row and does not change the item.
+- Squirrel also skips a row with a problem, for example a missing category. The result page lists each skipped row with its line number and the reason.
+
 ## Configuration
 
 Set these environment variables on the container. All of them are optional.
@@ -115,7 +138,7 @@ docker compose start squirrel
 
 To restore, stop the container and unpack the archive into the volume.
 
-A CSV export is handy to move items or to edit them in a spreadsheet. It is not a full backup, because it has no history. Back up the `/data` volume for that.
+A [CSV export](#import-and-export) is not a full backup, because it has no history. Back up the `/data` volume for that.
 
 ## Health check
 
@@ -142,6 +165,8 @@ Squirrel has a read-only JSON API. Use it for dashboards and home automation. It
 | `location` | A location id                                                        |
 | `store`    | A store id                                                           |
 | `sort`     | `count` (lowest first) or `updated` (newest first). Default: name    |
+
+To find an id, use the main page. Click a category tab, or choose a location or store filter. The address bar then shows the id, for example `?tab=3`, `?loc=2` or `?store=1`. The id of an item is in the address of its page, for example `/items/7`.
 
 ```sh
 curl 'http://localhost:8080/api/items?sort=count'
@@ -178,6 +203,7 @@ make test       # run all tests
 make lint       # run golangci-lint
 make generate   # run templ generate (commit the result)
 make css        # rebuild the stylesheet
+make build      # build ./bin/squirrel, with the version from git describe
 ```
 
 The stack is Go (`net/http`), [templ](https://templ.guide), [HTMX](https://htmx.org), [Tailwind CSS](https://tailwindcss.com) with [Basecoat](https://basecoatui.com), and SQLite through [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite). All assets are embedded in the binary.
