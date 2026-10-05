@@ -172,12 +172,20 @@ func TestHealthz(t *testing.T) {
 
 func TestVersionShown(t *testing.T) {
 	old := version.Version
-	version.Version = "9.9.9"
 	t.Cleanup(func() { version.Version = old })
 
+	version.Version = "9.9.9"
 	a := newApp(t)
 	for _, path := range []string{"/", "/lists/categories", "/nope"} {
-		a.get(path).contains(t, "Squirrel 9.9.9")
+		a.get(path).contains(t, "Squirrel v9.9.9")
+	}
+
+	// Builds that are not a release keep their name as it is.
+	for _, v := range []string{"dev", "edge-abc1234"} {
+		version.Version = v
+		r := a.get("/")
+		r.contains(t, "Squirrel "+v)
+		r.lacks(t, "Squirrel v"+v)
 	}
 }
 
