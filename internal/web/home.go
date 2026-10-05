@@ -19,6 +19,7 @@ type view struct {
 	q          string
 	locationID int64
 	storeID    int64
+	sort       string
 }
 
 func parseView(r *http.Request) view {
@@ -28,6 +29,7 @@ func parseView(r *http.Request) view {
 		q:          strings.TrimSpace(q.Get("q")),
 		locationID: parseID(q.Get("loc")),
 		storeID:    parseID(q.Get("store")),
+		sort:       q.Get("sort"),
 	}
 }
 
@@ -46,6 +48,9 @@ func (v view) href(tab string) string {
 	}
 	if v.storeID != 0 {
 		vals.Set("store", strconv.FormatInt(v.storeID, 10))
+	}
+	if v.sort != "" {
+		vals.Set("sort", v.sort)
 	}
 	if len(vals) == 0 {
 		return "/"
@@ -85,7 +90,7 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 	if v.q != "" {
 		active = ""
 	}
-	f := store.ItemFilter{Search: v.q, LocationID: v.locationID, StoreID: v.storeID}
+	f := store.ItemFilter{Search: v.q, LocationID: v.locationID, StoreID: v.storeID, Sort: v.sort}
 	switch {
 	case active == tabNone:
 		f.Uncategorised = true
@@ -116,7 +121,7 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 		AnyItems:  len(items) > 0,
 		CanAdd:    len(cats) > 0 && len(locs) > 0 && len(stores) > 0,
 		Filtered:  v.filtered(),
-		ClearHref: (view{}).href(active),
+		ClearHref: (view{sort: v.sort}).href(active),
 	}
 	if len(cats) == 0 {
 		stock.Missing = append(stock.Missing, "category")
@@ -141,6 +146,7 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 		Query:      v.q,
 		LocationID: v.locationID,
 		StoreID:    v.storeID,
+		Sort:       v.sort,
 		Locations:  locs,
 		Stores:     stores,
 		Stock:      stock,

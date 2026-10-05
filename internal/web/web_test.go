@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/andrewmooreio/squirrel/internal/store"
 	"github.com/andrewmooreio/squirrel/internal/web"
@@ -225,6 +226,56 @@ func TestSearchAndFilters(t *testing.T) {
 	// A search over a non-All tab still searches everything.
 	tools, _ := a.store.CreateListValue(ctx, store.Categories, "Tools")
 	a.get("/?tab="+id(tools)+"&q=rice").contains(t, "Rice")
+}
+
+func TestSort(t *testing.T) {
+	a := newApp(t)
+	ctx := context.Background()
+	food, garage, costco := a.seed()
+	apples := a.item("Apples", 5, food, garage, costco)
+	a.item("Beans", 1, food, garage, costco)
+	cocoa := a.item("Cocoa", 3, food, garage, costco)
+	// Timestamps have millisecond resolution, so pause between changes.
+	// Cocoa changes last, then Apples, so Cocoa is the most recent.
+	for _, id := range []int64{apples.ID, cocoa.ID} {
+		time.Sleep(5 * time.Millisecond)
+		if _, err := a.store.Adjust(ctx, id, 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	order := func(target string, want ...string) {
+		t.Helper()
+		r := a.get(target)
+		r.wantStatus(t, http.StatusOK)
+		last := -1
+		for _, name := range want {
+			i := strings.Index(r.body, ">"+name+"</a>")
+			if i < 0 {
+				t.Fatalf("%s: %q not found", target, name)
+			}
+			if i < last {
+				t.Errorf("%s: %q is out of order, want %v", target, name, want)
+			}
+			last = i
+		}
+	}
+	order("/", "Apples", "Beans", "Cocoa")
+	order("/?sort=count", "Beans", "Cocoa", "Apples")
+	order("/?sort=updated", "Cocoa", "Apples", "Beans")
+	order("/?sort=bogus", "Apples", "Beans", "Cocoa")
+
+	// Tab links keep the sort.
+	a.get("/?sort=count").contains(t, `href="/?sort=count&amp;tab=`+id(food)+`"`)
+
+	// The select marks the current option.
+	a.get("/?sort=count").contains(t, `<option value="count" selected>`)
+	a.get("/").contains(t, `<option value="" selected>Name</option>`)
+
+	// A sort alone is not a filter. Clear filters keeps the sort.
+	a.get("/?sort=count").lacks(t, "Clear filters")
+	r := a.get("/?sort=count&q=nothing")
+	r.contains(t, "No items found", "Clear filters", `href="/?sort=count"`)
 }
 
 func TestHTMXFragments(t *testing.T) {
