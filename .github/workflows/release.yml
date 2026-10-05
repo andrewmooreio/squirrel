@@ -104,9 +104,9 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag_name }},enable=${{ needs.release-please.outputs.release_created == 'true' }}
             type=semver,pattern={{major}},value=${{ needs.release-please.outputs.tag_name }},enable=${{ needs.release-please.outputs.release_created == 'true' }}
             type=raw,value=latest,enable=${{ needs.release-please.outputs.release_created == 'true' }}
-            # Push to main without a release: edge and sha-<short> only.
+            # Push to main without a release: edge only. The footer shows
+            # edge-<short sha>, so no sha tag is needed.
             type=raw,value=edge,enable=${{ needs.release-please.outputs.release_created != 'true' }}
-            type=sha,prefix=sha-,format=short,enable=${{ needs.release-please.outputs.release_created != 'true' }}
 
       - name: Image version
         id: version
@@ -130,3 +130,15 @@ jobs:
           build-args: VERSION=${{ steps.version.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # A new edge leaves the old edge image without a tag. Delete untagged
+      # images, so the registry keeps only the releases and one edge. The
+      # action keeps the platform images and attestations of tagged images.
+      - name: Delete untagged images
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          package: squirrel
+          delete-untagged: true
+          validate: true
+          # Log what it would delete. Remove after one clean run.
+          dry-run: true
