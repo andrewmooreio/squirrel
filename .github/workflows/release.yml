@@ -48,11 +48,35 @@ jobs:
             git push --force origin "refs/tags/$tag"
           done
 
+  # A push that touches only docs gives the same image, so skip the edge build.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          # A file counts as code if it matches every rule below.
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!LICENSE'
+
   # The image is built here, not in a separate workflow, because tags made with
   # GITHUB_TOKEN do not trigger other workflows.
   image:
     name: Build and push image
-    needs: release-please
+    needs: [release-please, changes]
+    # Always build a release. Otherwise build edge only when code changed.
+    if: ${{ needs.release-please.outputs.release_created == 'true' || needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
