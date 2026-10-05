@@ -13,7 +13,7 @@ import (
 // Page carries the values every full page needs.
 type Page struct {
 	Title string
-	// Nav is "lists" when the Manage lists link is the current page.
+	// Nav is "lists" or "shopping" when that header link is the current page.
 	Nav string
 	// Ver busts the browser cache of the embedded assets.
 	Ver string

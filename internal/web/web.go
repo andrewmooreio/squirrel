@@ -49,6 +49,8 @@ func New(st *store.Store) http.Handler {
 	mux.HandleFunc("GET /manifest.webmanifest", s.manifest)
 	mux.HandleFunc("GET /static/", s.serveStatic)
 
+	mux.HandleFunc("GET /shopping", s.shopping)
+
 	mux.HandleFunc("GET /items/new", s.newItem)
 	mux.HandleFunc("POST /items", s.createItem)
 	mux.HandleFunc("GET /items/{id}", s.showItem)

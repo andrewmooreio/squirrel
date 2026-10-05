@@ -43,6 +43,8 @@ type ItemFilter struct {
 	LocationID    int64
 	StoreID       int64
 	Search        string
+	// OutOfStock keeps only the items with a count of 0.
+	OutOfStock bool
 	// Sort picks the order of the result. Use SortName, SortCount or
 	// SortUpdated. Any other value sorts by name.
 	Sort string
@@ -112,6 +114,9 @@ func (s *Store) ListItems(ctx context.Context, f ItemFilter) ([]Item, error) {
 	if f.StoreID != 0 {
 		where = append(where, "i.store_id = ?")
 		args = append(args, f.StoreID)
+	}
+	if f.OutOfStock {
+		where = append(where, "i.count = 0")
 	}
 	if q := strings.TrimSpace(f.Search); q != "" {
 		where = append(where, `i.name LIKE ? ESCAPE '\'`)
