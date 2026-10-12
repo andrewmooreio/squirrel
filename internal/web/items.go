@@ -11,9 +11,12 @@ import (
 	"github.com/andrewmooreio/squirrel/internal/web/views"
 )
 
-// formLists loads the three lists for the item form.
+// formLists loads the three lists and the unit suggestions for the item form.
 func (s *server) formLists(r *http.Request, d *views.ItemFormData) error {
 	var err error
+	if d.Units, err = s.store.Units(r.Context()); err != nil {
+		return err
+	}
 	if d.Categories, err = s.store.Lists(r.Context(), store.Categories); err != nil {
 		return err
 	}
@@ -25,7 +28,7 @@ func (s *server) formLists(r *http.Request, d *views.ItemFormData) error {
 }
 
 func (s *server) newItem(w http.ResponseWriter, r *http.Request) {
-	d := views.ItemFormData{}
+	d := views.ItemFormData{Unit: store.DefaultUnit}
 	if err := s.formLists(r, &d); err != nil {
 		s.fail(w, r, err)
 		return
@@ -50,7 +53,7 @@ func (s *server) editItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := views.ItemFormData{
-		ID: it.ID, Name: it.Name, Count: it.Count, Notes: it.Notes,
+		ID: it.ID, Name: it.Name, Count: it.Count, Unit: it.Unit, Notes: it.Notes,
 		CategoryID: it.CategoryID, LocationID: it.LocationID, StoreID: it.StoreID,
 	}
 	if err := s.formLists(r, &d); err != nil {
@@ -82,9 +85,10 @@ func readItemForm(r *http.Request, id int64) (views.ItemFormData, store.ItemInpu
 		LocationID: parseID(r.PostFormValue("location_id")),
 		StoreID:    parseID(r.PostFormValue("store_id")),
 		Notes:      r.PostFormValue("notes"),
+		Unit:       r.PostFormValue("unit"),
 	}
 	d := views.ItemFormData{
-		ID: id, Name: in.Name, Count: count, Notes: in.Notes,
+		ID: id, Name: in.Name, Count: count, Unit: in.Unit, Notes: in.Notes,
 		CategoryID: in.CategoryID, LocationID: in.LocationID, StoreID: in.StoreID,
 	}
 	return d, in, errs

@@ -17,6 +17,7 @@ type apiItem struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
 	Count     int       `json:"count"`
+	Unit      string    `json:"unit"`
 	Category  *string   `json:"category"`
 	Location  *string   `json:"location"`
 	Store     *string   `json:"store"`
@@ -30,6 +31,7 @@ func newAPIItem(it store.Item) apiItem {
 		ID:        it.ID,
 		Name:      it.Name,
 		Count:     it.Count,
+		Unit:      it.Unit,
 		Category:  nullable(it.CategoryName),
 		Location:  nullable(it.LocationName),
 		Store:     nullable(it.StoreName),

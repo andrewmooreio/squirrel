@@ -7,13 +7,14 @@ You buy toothpaste, tinned tomatoes and fruit & nut mix in bulk, and you put it 
 Squirrel does not decide when to buy more. You look at the counts and decide.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="Squirrel on a phone. Links to the shopping list and Manage lists at the top, then search, filters and a sort menu. Below is a list of household items such as basmati rice, bin bags and olive oil, each with a cart button, a −1 button, a count and a +1 button. Olive oil and shampoo are on the shopping list, so their cart buttons are orange." width="320">
+  <img src="docs/screenshot.png" alt="Squirrel on a phone. Links to the shopping list and Manage lists at the top, then search, filters and a sort menu. Below is a list of household items such as basmati rice, bin bags and olive oil, each with a cart button, a −1 button, a count with its unit, such as kg or rolls, and a +1 button. Olive oil and shampoo are on the shopping list, so their cart buttons are orange." width="320">
 </p>
 
 ## Features
 
 - A list of items with large **−1** and **+1** buttons, made for one hand on a phone.
 - Tap a count to type an exact number.
+- Give each item a unit, for example tins, rolls or kg. The default is items.
 - Tabs for **All** and for each category, plus search and filters for location and store.
 - Sort from A to Z or Z to A, by lowest count first, or by the most recent change.
 - A **Shopping list**. Tap the cart on an item to add it. Tap it again when you buy it. The list groups items by store.
@@ -81,12 +82,12 @@ Open **Manage lists**, then **Import and export**.
 To import, choose a CSV file of 1 MB or less. The first row names the columns:
 
 ```csv
-name,count,category,location,store,notes
-Tinned tomatoes,24,Food,Pantry,Costco,
-Bin bags,9,Cleaning,Under the stairs,Costco,Black ones
+name,count,unit,category,location,store,notes
+Tinned tomatoes,24,tins,Food,Pantry,Costco,
+Bin bags,9,rolls,Cleaning,Under the stairs,Costco,Black ones
 ```
 
-- `name`, `category`, `location` and `store` are required. `count` and `notes` are optional. A blank count is 0.
+- `name`, `category`, `location` and `store` are required. `count`, `unit` and `notes` are optional. A blank count is 0. A blank unit is `items`.
 - The columns can be in any order. Squirrel ignores other columns.
 - Squirrel creates a category, location or store that does not exist yet.
 - An import only adds items. If an item with the same name exists, Squirrel skips the row and does not change the item.
@@ -181,6 +182,7 @@ curl 'http://localhost:8080/api/items?sort=count'
       "id": 1,
       "name": "Tinned tomatoes",
       "count": 3,
+      "unit": "tins",
       "category": "Food",
       "location": "Garage",
       "store": "Costco",

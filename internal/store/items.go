@@ -21,6 +21,8 @@ type Item struct {
 	StoreID      int64
 	StoreName    string
 	Notes        string
+	// Unit is the label for the count, such as "items" or "tins".
+	Unit string
 	// OnList is true when the item is on the shopping list.
 	OnList    bool
 	CreatedAt time.Time
@@ -36,7 +38,15 @@ type ItemInput struct {
 	LocationID int64
 	StoreID    int64
 	Notes      string
+	// Unit is the label for the count. A blank unit means DefaultUnit.
+	Unit string
 }
+
+// DefaultUnit is the unit of an item when the user does not give one.
+const DefaultUnit = "items"
+
+// maxUnitLen is the longest unit, in bytes.
+const maxUnitLen = 20
 
 // ItemFilter narrows ListItems. Zero values mean "any".
 type ItemFilter struct {
@@ -89,7 +99,7 @@ const itemSelect = `
 	       coalesce(i.category_id, 0), coalesce(c.name, ''),
 	       coalesce(i.location_id, 0), coalesce(l.name, ''),
 	       coalesce(i.store_id, 0), coalesce(s.name, ''),
-	       i.notes, i.on_list, i.created_at, i.updated_at
+	       i.notes, i.unit, i.on_list, i.created_at, i.updated_at
 	FROM items i
 	LEFT JOIN categories c ON c.id = i.category_id
 	LEFT JOIN locations l ON l.id = i.location_id
@@ -104,7 +114,7 @@ func scanItem(r scanner) (Item, error) {
 		&it.CategoryID, &it.CategoryName,
 		&it.LocationID, &it.LocationName,
 		&it.StoreID, &it.StoreName,
-		&it.Notes, &it.OnList, &created, &updated)
+		&it.Notes, &it.Unit, &it.OnList, &created, &updated)
 	if err != nil {
 		return Item{}, err
 	}
@@ -208,9 +218,9 @@ func (s *Store) CreateItem(ctx context.Context, in ItemInput) (Item, error) {
 	var id int64
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `
-			INSERT INTO items (name, count, category_id, location_id, store_id, notes)
-			VALUES (?, ?, ?, ?, ?, ?)`,
-			in.Name, in.Count, in.CategoryID, in.LocationID, in.StoreID, in.Notes)
+			INSERT INTO items (name, count, category_id, location_id, store_id, notes, unit)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			in.Name, in.Count, in.CategoryID, in.LocationID, in.StoreID, in.Notes, in.Unit)
 		if err != nil {
 			return mapErr(err)
 		}
@@ -237,9 +247,9 @@ func (s *Store) UpdateItem(ctx context.Context, id int64, in ItemInput) (Item, e
 	}
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE items
-		SET name = ?, category_id = ?, location_id = ?, store_id = ?, notes = ?, updated_at = ?
+		SET name = ?, category_id = ?, location_id = ?, store_id = ?, notes = ?, unit = ?, updated_at = ?
 		WHERE id = ?`,
-		in.Name, in.CategoryID, in.LocationID, in.StoreID, in.Notes, now(), id)
+		in.Name, in.CategoryID, in.LocationID, in.StoreID, in.Notes, in.Unit, now(), id)
 	if err != nil {
 		return Item{}, mapErr(err)
 	}
@@ -289,6 +299,11 @@ func (s *Store) validate(ctx context.Context, in ItemInput) (ItemInput, error) {
 	if len(in.Notes) > 2000 {
 		fields["notes"] = "Use 2000 characters or fewer."
 	}
+	unit, msg := cleanUnit(in.Unit)
+	if msg != "" {
+		fields["unit"] = msg
+	}
+	in.Unit = unit
 
 	for _, ref := range []struct {
 		kind  ListKind
@@ -318,6 +333,57 @@ func (s *Store) validate(ctx context.Context, in ItemInput) (ItemInput, error) {
 		return in, &ValidationError{Fields: fields}
 	}
 	return in, nil
+}
+
+// cleanUnit trims the unit. A blank unit becomes DefaultUnit. A unit that
+// is not valid gives a message for the user.
+func cleanUnit(unit string) (string, string) {
+	unit = strings.TrimSpace(unit)
+	if unit == "" {
+		return DefaultUnit, ""
+	}
+	if len(unit) > maxUnitLen {
+		return unit, "Use 20 characters or fewer."
+	}
+	return unit, ""
+}
+
+// Units returns DefaultUnit and every unit in use, most used first. Units
+// that differ only in case appear once, in their most used spelling.
+func (s *Store) Units(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		WITH spellings AS (
+			SELECT unit, lower(unit) AS key, count(*) AS n FROM items GROUP BY unit
+		), ranked AS (
+			SELECT unit, key, sum(n) OVER (PARTITION BY key) AS total,
+			       row_number() OVER (PARTITION BY key ORDER BY n DESC, unit) AS pick
+			FROM spellings
+		)
+		SELECT unit FROM ranked WHERE pick = 1 ORDER BY total DESC, key`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []string
+	hasDefault := false
+	for rows.Next() {
+		var u string
+		if err := rows.Scan(&u); err != nil {
+			return nil, err
+		}
+		if strings.EqualFold(u, DefaultUnit) {
+			hasDefault = true
+		}
+		out = append(out, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if !hasDefault {
+		out = append(out, DefaultUnit)
+	}
+	return out, nil
 }
 
 // Adjust adds delta to the item's count atomically and records the change.

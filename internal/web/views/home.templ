@@ -276,17 +276,20 @@ templ Row(it store.Item, msg string) {
 				hx-target={ rowTarget(it.ID) }
 				hx-swap="outerHTML"
 			>
-				<input
-					type="number"
-					name="count"
-					value={ itoa(it.Count) }
-					min="0"
-					step="1"
-					inputmode="numeric"
-					aria-label={ "Count of " + it.Name }
-					onfocus="this.select()"
-					class="input count-input h-12 w-16 text-center text-lg font-semibold tabular-nums"
-				/>
+				<label class="relative block">
+					<input
+						type="number"
+						name="count"
+						value={ itoa(it.Count) }
+						min="0"
+						step="1"
+						inputmode="numeric"
+						aria-label={ "Count of " + it.Name + ", in " + it.Unit }
+						onfocus="this.select()"
+						class="input count-input h-12 w-16 pb-3.5 text-center text-lg leading-none font-semibold tabular-nums"
+					/>
+					<span class="pointer-events-none absolute inset-x-1 bottom-1 truncate text-center text-[10px] leading-3 text-muted-foreground" aria-hidden="true">{ it.Unit }</span>
+				</label>
 			</form>
 			<form
 				method="post"

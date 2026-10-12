@@ -8,6 +8,7 @@ type ItemFormData struct {
 	ID         int64
 	Name       string
 	Count      int
+	Unit       string
 	CategoryID int64
 	LocationID int64
 	StoreID    int64
@@ -15,6 +16,8 @@ type ItemFormData struct {
 	Categories []store.ListValue
 	Locations  []store.ListValue
 	Stores     []store.ListValue
+	// Units are the suggestions for the unit field.
+	Units []string
 	// Errors maps a field name to its message.
 	Errors map[string]string
 }
@@ -35,13 +38,18 @@ templ ItemForm(p Page, d ItemFormData) {
 				}
 				@textField("name", "Name", d.Name, d.Errors["name"], true)
 				if d.ID == 0 {
-					<div class="field">
-						<label for="count" class="label">Starting count</label>
-						<input id="count" name="count" type="number" min="0" step="1" inputmode="numeric" value={ itoa(d.Count) } class="input h-11"/>
-						if msg := d.Errors["count"]; msg != "" {
-							<p class="text-sm text-destructive">{ msg }</p>
-						}
+					<div class="grid grid-cols-2 gap-3">
+						<div class="field">
+							<label for="count" class="label">Starting count</label>
+							<input id="count" name="count" type="number" min="0" step="1" inputmode="numeric" value={ itoa(d.Count) } class="input h-11"/>
+							if msg := d.Errors["count"]; msg != "" {
+								<p class="text-sm text-destructive">{ msg }</p>
+							}
+						</div>
+						@unitField(d.Unit, d.Units, d.Errors["unit"])
 					</div>
+				} else {
+					@unitField(d.Unit, d.Units, d.Errors["unit"])
 				}
 				@selectField("category_id", "Category", d.CategoryID, d.Categories, d.Errors["category"])
 				@selectField("location_id", "Location", d.LocationID, d.Locations, d.Errors["location"])
@@ -80,6 +88,22 @@ templ textField(name, label, value, errMsg string, required bool) {
 	<div class="field">
 		<label for={ name } class="label">{ label }</label>
 		<input id={ name } name={ name } type="text" value={ value } required?={ required } maxlength="100" autocomplete="off" class="input h-11"/>
+		if errMsg != "" {
+			<p class="text-sm text-destructive">{ errMsg }</p>
+		}
+	</div>
+}
+
+templ unitField(value string, units []string, errMsg string) {
+	<div class="field">
+		<label for="unit" class="label">Unit</label>
+		<input id="unit" name="unit" type="text" value={ value } maxlength="20" list="unit-options" autocomplete="off" placeholder="items" class="input h-11"/>
+		<datalist id="unit-options">
+			for _, u := range units {
+				<option value={ u }></option>
+			}
+		</datalist>
+		<p class="text-sm text-muted-foreground">For example tins, rolls or kg.</p>
 		if errMsg != "" {
 			<p class="text-sm text-destructive">{ errMsg }</p>
 		}
@@ -137,7 +161,7 @@ templ ItemPage(p Page, d ItemPageData) {
 				if d.Error != "" {
 					<p class="text-sm text-destructive" role="alert">{ d.Error }</p>
 				}
-				@History(d.Item.ID, d.History)
+				@History(d.Item.ID, d.Item.Unit, d.History)
 			</section>
 			<div>
 				<button type="button" class="btn" data-variant="destructive" data-size="sm" onclick={ openDialog("delete-item") }>Delete item</button>
@@ -169,7 +193,7 @@ templ confirmDialog(id, title, body, action string) {
 }
 
 // History lists the latest changes. Only the newest has an undo button.
-templ History(itemID int64, changes []store.Change) {
+templ History(itemID int64, unit string, changes []store.Change) {
 	if len(changes) == 0 {
 		<p class="text-sm text-muted-foreground">No changes yet.</p>
 	} else {
@@ -178,7 +202,7 @@ templ History(itemID int64, changes []store.Change) {
 				<li class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
 					<span class="tabular-nums font-medium">{ delta(c.Delta) }</span>
 					<span class="flex-1 text-muted-foreground">
-						now <span class="tabular-nums">{ itoa(c.Count) }</span>
+						now <span class="tabular-nums">{ itoa(c.Count) }</span> { unit }
 						·
 						<time datetime={ rfc3339(c.CreatedAt) } data-local>{ fallbackTime(c.CreatedAt) }</time>
 					</span>

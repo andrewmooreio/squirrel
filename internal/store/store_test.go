@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -297,5 +298,46 @@ func TestNameUniqueness(t *testing.T) {
 	in.Name = " beans "
 	if _, err := s.CreateItem(ctx, in); !errors.Is(err, store.ErrDuplicate) {
 		t.Errorf("duplicate item err = %v, want ErrDuplicate", err)
+	}
+}
+
+// An item made before the unit column existed gets the default unit.
+func TestMigrateGivesExistingItemsDefaultUnit(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "old.db")
+	db := rawDB(t, path)
+	for _, f := range []string{"0001_init.sql", "0002_shopping_list.sql"} {
+		body, err := os.ReadFile(filepath.Join("migrations", f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.ExecContext(ctx, string(body)); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `
+		PRAGMA user_version = 2;
+		INSERT INTO categories (name) VALUES ('Food');
+		INSERT INTO locations (name) VALUES ('Pantry');
+		INSERT INTO stores (name) VALUES ('Aldi');
+		INSERT INTO items (name, count, category_id, location_id, store_id) VALUES ('Beans', 3, 1, 1, 1);`); err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Close()
+
+	s, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	if err := s.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	items, err := s.ListItems(ctx, store.ItemFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Unit != store.DefaultUnit || items[0].Count != 3 {
+		t.Fatalf("items = %+v, want Beans with 3 %s", items, store.DefaultUnit)
 	}
 }
