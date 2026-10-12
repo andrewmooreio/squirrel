@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/andrewmooreio/squirrel/compare/v1.1.0...v1.2.0) (2026-10-12)
+
+
+### Features
+
+* set a unit per item ([#22](https://github.com/andrewmooreio/squirrel/issues/22)) ([45f548e](https://github.com/andrewmooreio/squirrel/commit/45f548e83a65202de9a142b173c7a2eeef80f069))
+
 ## [1.1.0](https://github.com/andrewmooreio/squirrel/compare/v1.0.1...v1.1.0) (2026-10-05)
 
 
