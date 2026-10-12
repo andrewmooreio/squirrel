@@ -46,4 +46,17 @@
   .count-btn {
     @apply size-12 shrink-0 text-lg font-semibold tabular-nums;
   }
+
+  /* The count box has − and + buttons, so hide the spin buttons. They take
+     space on the right and push the number off centre. */
+  .count-input {
+    @apply px-1;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  .count-input::-webkit-inner-spin-button,
+  .count-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }

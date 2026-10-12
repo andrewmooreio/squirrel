@@ -10,11 +10,13 @@ import (
 
 // ImportRow is one row of an import file. Line is the line number in the
 // file, used to report problems. Count is raw text, so the store checks it
-// with the same rule as everywhere else. A blank count means 0.
+// with the same rule as everywhere else. A blank count means 0, and a blank
+// unit means DefaultUnit.
 type ImportRow struct {
 	Line     int
 	Name     string
 	Count    string
+	Unit     string
 	Category string
 	Location string
 	Store    string
@@ -81,9 +83,9 @@ func (s *Store) ImportItems(ctx context.Context, rows []ImportRow) (ImportResult
 
 			count, _ := strconv.Atoi(clean.Count) // checked by cleanImportRow
 			r, err := tx.ExecContext(ctx, `
-				INSERT INTO items (name, count, category_id, location_id, store_id, notes)
-				VALUES (?, ?, ?, ?, ?, ?)`,
-				clean.Name, count, ids[0], ids[1], ids[2], clean.Notes)
+				INSERT INTO items (name, count, unit, category_id, location_id, store_id, notes)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				clean.Name, count, clean.Unit, ids[0], ids[1], ids[2], clean.Notes)
 			if err != nil {
 				return mapErr(err)
 			}
@@ -107,7 +109,7 @@ func (s *Store) ImportItems(ctx context.Context, rows []ImportRow) (ImportResult
 }
 
 // cleanImportRow trims the row. It returns the first problem as a reason, in
-// the order name, count, category, location, store, notes.
+// the order name, count, unit, category, location, store, notes.
 func cleanImportRow(row ImportRow) (ImportRow, string) {
 	msg := func(err error, field string) string {
 		var verr *ValidationError
@@ -130,6 +132,12 @@ func cleanImportRow(row ImportRow) (ImportRow, string) {
 	if n, err := strconv.Atoi(row.Count); err != nil || n < 0 {
 		return row, "Enter a whole number of 0 or more."
 	}
+
+	unit, reason := cleanUnit(row.Unit)
+	if reason != "" {
+		return row, reason
+	}
+	row.Unit = unit
 
 	for _, f := range []struct {
 		val   *string

@@ -16,7 +16,7 @@ import (
 // maxImportBytes caps the size of an uploaded CSV file.
 const maxImportBytes = 1 << 20
 
-var csvHeader = []string{"name", "count", "category", "location", "store", "notes"}
+var csvHeader = []string{"name", "count", "unit", "category", "location", "store", "notes"}
 
 func (s *server) transfer(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, views.Transfer(s.page("Import and export", "lists")))
@@ -36,7 +36,7 @@ func (s *server) exportCSV(w http.ResponseWriter, r *http.Request) {
 	cw := csv.NewWriter(w)
 	_ = cw.Write(csvHeader)
 	for _, it := range items {
-		_ = cw.Write([]string{it.Name, strconv.Itoa(it.Count), it.CategoryName, it.LocationName, it.StoreName, it.Notes})
+		_ = cw.Write([]string{it.Name, strconv.Itoa(it.Count), it.Unit, it.CategoryName, it.LocationName, it.StoreName, it.Notes})
 	}
 	cw.Flush()
 }
@@ -124,6 +124,7 @@ func readImportRows(src io.Reader) ([]store.ImportRow, int, string) {
 			Line:     line,
 			Name:     field(rec, "name"),
 			Count:    field(rec, "count"),
+			Unit:     field(rec, "unit"),
 			Category: field(rec, "category"),
 			Location: field(rec, "location"),
 			Store:    field(rec, "store"),
@@ -138,7 +139,7 @@ func readImportRows(src io.Reader) ([]store.ImportRow, int, string) {
 }
 
 func blankRow(r store.ImportRow) bool {
-	for _, v := range []string{r.Name, r.Count, r.Category, r.Location, r.Store, r.Notes} {
+	for _, v := range []string{r.Name, r.Count, r.Unit, r.Category, r.Location, r.Store, r.Notes} {
 		if strings.TrimSpace(v) != "" {
 			return false
 		}

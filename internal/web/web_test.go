@@ -442,6 +442,64 @@ func TestItemCreate(t *testing.T) {
 	a.get("/?q=rice").contains(t, `value="0"`)
 }
 
+func TestItemUnit(t *testing.T) {
+	a := newApp(t)
+	ctx := context.Background()
+	food, loc, shop := a.seed()
+	lists := url.Values{"category_id": {id(food)}, "location_id": {id(loc)}, "store_id": {id(shop)}}
+	form := func(kv ...string) url.Values {
+		f := url.Values{}
+		for k, v := range lists {
+			f[k] = v
+		}
+		for i := 0; i+1 < len(kv); i += 2 {
+			f.Set(kv[i], kv[i+1])
+		}
+		return f
+	}
+
+	// The add form offers the default unit.
+	a.get("/items/new").contains(t, `name="unit"`, `value="items"`, `<option value="items">`)
+
+	// A blank unit means the default. A unit is trimmed and keeps its case.
+	a.post("/items", form("name", "Rice", "count", "2", "unit", "  ")).wantRedirect(t, "/")
+	a.post("/items", form("name", "Beans", "count", "3", "unit", " Tins ")).wantRedirect(t, "/")
+	a.post("/items", form("name", "Soup", "count", "1", "unit", "Tins")).wantRedirect(t, "/")
+	a.post("/items", form("name", "Peas", "count", "1", "unit", "tins")).wantRedirect(t, "/")
+
+	home := a.get("/")
+	home.contains(t, `aria-label="Count of Rice, in items"`, `aria-label="Count of Beans, in Tins"`, ">Tins</span>")
+
+	// A unit over 20 characters is refused.
+	r := a.post("/items", form("name", "Oil", "unit", strings.Repeat("x", 21)))
+	r.wantStatus(t, http.StatusUnprocessableEntity)
+	r.contains(t, "Use 20 characters or fewer.")
+
+	// Suggestions list each unit once, in its most used spelling, most used first.
+	sugg := regexp.MustCompile(`<option value="([^"]*)"></option>`).FindAllStringSubmatch(a.get("/items/new").body, -1)
+	var got []string
+	for _, m := range sugg {
+		got = append(got, m[1])
+	}
+	if strings.Join(got, ",") != "Tins,items" {
+		t.Errorf("suggestions = %v, want [Tins items]", got)
+	}
+
+	// The edit form changes the unit but not the count.
+	beans, _ := a.store.ListItems(ctx, store.ItemFilter{Search: "Beans"})
+	path := "/items/" + id(beans[0].ID)
+	a.get(path+"/edit").contains(t, `value="Tins"`)
+	a.post(path, form("name", "Beans", "unit", "kg")).wantRedirect(t, path)
+	got2, _ := a.store.GetItem(ctx, beans[0].ID)
+	if got2.Unit != "kg" || got2.Count != 3 {
+		t.Errorf("beans = %d %s, want 3 kg", got2.Count, got2.Unit)
+	}
+
+	// History shows the current unit.
+	a.get(path).contains(t, `<span class="tabular-nums">3</span> kg`)
+	a.get("/api/items/"+id(beans[0].ID)).contains(t, `"unit":"kg"`)
+}
+
 func TestItemEdit(t *testing.T) {
 	a := newApp(t)
 	ctx := context.Background()
@@ -590,6 +648,7 @@ type apiItemJSON struct {
 	ID        int64   `json:"id"`
 	Name      string  `json:"name"`
 	Count     int     `json:"count"`
+	Unit      string  `json:"unit"`
 	Category  *string `json:"category"`
 	Location  *string `json:"location"`
 	Store     *string `json:"store"`
@@ -673,7 +732,7 @@ func TestAPIItems(t *testing.T) {
 		t.Fatalf("items = %+v", out.Items)
 	}
 	apples := out.Items[0]
-	if apples.Count != 9 || apples.Category == nil || *apples.Category != "Food" ||
+	if apples.Count != 9 || apples.Unit != "items" || apples.Category == nil || *apples.Category != "Food" ||
 		apples.Location == nil || *apples.Location != "Shed" || apples.Store == nil || *apples.Store != "Aldi" {
 		t.Errorf("apples = %+v", apples)
 	}
@@ -926,9 +985,9 @@ func TestExportCSV(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := [][]string{
-		{"name", "count", "category", "location", "store", "notes"},
-		{"Beans", "0", "Food", "Garage", "Costco", nasty},
-		{"Rice", "3", "Food", "Garage", "Costco", ""},
+		{"name", "count", "unit", "category", "location", "store", "notes"},
+		{"Beans", "0", "items", "Food", "Garage", "Costco", nasty},
+		{"Rice", "3", "items", "Food", "Garage", "Costco", ""},
 	}
 	if len(recs) != len(want) {
 		t.Fatalf("rows = %v, want %v", recs, want)
@@ -952,22 +1011,24 @@ func TestImportCSV(t *testing.T) {
 	cat, loc, shop := a.seed()
 	a.item("Rice", 1, cat, loc, shop)
 
-	file := "name,count,category,location,store,notes\n" +
-		"Beans,4,food,Garage,Aldi,Tinned\n" + // line 2: new item, reuses Food, new store
-		"rice,2,Food,Garage,Costco,\n" + // line 3: exists
-		"Flour,,Food,Garage,Aldi,\n" + // line 4: blank count is 0
-		"BEANS,1,Food,Garage,Aldi,\n" + // line 5: duplicate in file
-		"Salt,1,,Garage,Aldi,\n" + // line 6: no category
-		"Pepper,abc,Food,Garage,Aldi,\n" + // line 7: bad count
-		",,,,,\n" + // blank row, ignored
-		"Oil,2,Food,Shed,Aldi,\n" // line 9: new location
+	file := "name,count,unit,category,location,store,notes\n" +
+		"Beans,4, tins ,food,Garage,Aldi,Tinned\n" + // line 2: new item, reuses Food, new store
+		"rice,2,,Food,Garage,Costco,\n" + // line 3: exists
+		"Flour,,,Food,Garage,Aldi,\n" + // line 4: blank count is 0, blank unit is items
+		"BEANS,1,,Food,Garage,Aldi,\n" + // line 5: duplicate in file
+		"Salt,1,,,Garage,Aldi,\n" + // line 6: no category
+		"Pepper,abc,,Food,Garage,Aldi,\n" + // line 7: bad count
+		",,,,,,\n" + // blank row, ignored
+		"Oil,2,,Food,Shed,Aldi,\n" + // line 9: new location
+		"Sugar,1," + strings.Repeat("x", 21) + ",Food,Garage,Aldi,\n" // line 10: unit too long
 	r := a.upload("/import", "file", "items.csv", file)
 	r.wantStatus(t, 200)
-	r.contains(t, "Import done", "Added 3 items.", "Skipped 4 rows.",
+	r.contains(t, "Import done", "Added 3 items.", "Skipped 5 rows.",
 		"Line 3, rice: An item with this name exists. Squirrel did not change it.",
 		"Line 5, BEANS: An item with this name exists. Squirrel did not change it.",
 		"Line 6, Salt: Enter a category.",
 		"Line 7, Pepper: Enter a whole number of 0 or more.",
+		"Line 10, Sugar: Use 20 characters or fewer.",
 		"Back to the list", "Import another file")
 
 	home := a.get("/")
@@ -984,11 +1045,14 @@ func TestImportCSV(t *testing.T) {
 	}
 
 	items, _ := a.store.ListItems(ctx, store.ItemFilter{Search: "Beans"})
-	if len(items) != 1 || items[0].Count != 4 || items[0].Notes != "Tinned" {
+	if len(items) != 1 || items[0].Count != 4 || items[0].Unit != "tins" || items[0].Notes != "Tinned" {
 		t.Fatalf("beans = %+v", items)
 	}
 	a.get("/items/"+id(items[0].ID)).contains(t, "History", "+4")
 	flour, _ := a.store.ListItems(ctx, store.ItemFilter{Search: "Flour"})
+	if flour[0].Unit != "items" {
+		t.Errorf("flour unit = %q, want items", flour[0].Unit)
+	}
 	if hist, _ := a.store.History(ctx, flour[0].ID, 10); len(hist) != 0 {
 		t.Errorf("flour history = %+v, want none", hist)
 	}
@@ -1058,7 +1122,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 	a.item("Rice", 3, cat, loc, shop)
 	it := a.item("Beans", 0, cat, loc, shop)
 	if _, err := a.store.UpdateItem(context.Background(), it.ID, store.ItemInput{
-		Name: "Beans", CategoryID: cat, LocationID: loc, StoreID: shop, Notes: "a, \"b\"\nc",
+		Name: "Beans", CategoryID: cat, LocationID: loc, StoreID: shop, Notes: "a, \"b\"\nc", Unit: "tins",
 	}); err != nil {
 		t.Fatal(err)
 	}
