@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/andrewmooreio/squirrel/compare/v1.2.0...v2.0.0) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* rewrite Squirrel in TypeScript to run on any host ([#26](https://github.com/andrewmooreio/squirrel/issues/26))
+
+### Features
+
+* rewrite Squirrel in TypeScript to run on any host ([#26](https://github.com/andrewmooreio/squirrel/issues/26)) ([21287c7](https://github.com/andrewmooreio/squirrel/commit/21287c706cd95da289148fa0f2ca3195b9cc68a1))
+
 ## [1.2.0](https://github.com/andrewmooreio/squirrel/compare/v1.1.0...v1.2.0) (2026-10-12)
 
 
