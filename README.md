@@ -88,6 +88,8 @@ npm run deploy
 
 Static files come from Workers Static Assets, so they do not use Worker CPU time.
 
+The Workers free plan allows 10 ms of CPU time for each request. The home page fits in that limit for up to about 250 items. A longer list can go over it. The container has no such limit. Paging for long lists is planned.
+
 ### First start
 
 Squirrel starts empty. Before you add an item, open **Manage lists** and create at least one category, one location and one store. Then add your first item.
