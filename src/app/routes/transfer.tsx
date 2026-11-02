@@ -10,6 +10,23 @@ const MSG_UNREADABLE = "Squirrel cannot read this file. Check that it is a CSV f
 const MSG_COLUMNS = "The file needs these columns: name, category, location, store.";
 const MSG_TOO_BIG = "The file is too big. Use a file of 1 MB or less.";
 
+/** The most bytes to read and drop from a body that is too big. */
+const MAX_DRAIN_BYTES = 32 << 20;
+
+/**
+ * Reads the rest of a body that is too big and drops it. A cancel here makes
+ * the body's own producer throw on Node 24. A hard cap stops a body with no end.
+ */
+async function drain(reader: ReadableStreamDefaultReader<Uint8Array>, seen: number) {
+  let total = seen;
+  while (total < MAX_DRAIN_BYTES) {
+    const { done, value } = await reader.read();
+    if (done) return;
+    total += value.byteLength;
+  }
+  await reader.cancel().catch(() => {});
+}
+
 /** Reads the body up to max bytes. It returns null if the body is bigger. */
 async function readLimited(req: Request, max: number): Promise<Uint8Array | null> {
   const declared = Number(req.headers.get("content-length"));
@@ -23,7 +40,7 @@ async function readLimited(req: Request, max: number): Promise<Uint8Array | null
     if (done) break;
     total += value.byteLength;
     if (total > max) {
-      await reader.cancel();
+      await drain(reader, total);
       return null;
     }
     parts.push(value);
