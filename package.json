@@ -1,0 +1,45 @@
+{
+  "name": "squirrel",
+  "version": "1.2.0",
+  "private": true,
+  "description": "A self-hosted web app that counts household stock.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "build": "npm run build:static && npm run build:node",
+    "build:static": "node scripts/build-static.mjs",
+    "build:node": "node scripts/build-node.mjs",
+    "start": "node dist/node/server.mjs",
+    "dev": "npm run build && DATABASE_URL=${DATABASE_URL:-sqlite://./tmp/squirrel.db} node dist/node/server.mjs",
+    "dev:worker": "npm run build:static && wrangler dev",
+    "deploy": "npm run build:static && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "pretest": "npm run build:static",
+    "test": "vitest run",
+    "test:node": "vitest run --project node",
+    "test:workers": "vitest run --project workers"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@cloudflare/vitest-plugin": "1.4.12",
+    "@cloudflare/workers-types": "5.20261102.1",
+    "@tailwindcss/cli": "4.3.3",
+    "@types/node": "26.6.6",
+    "basecoat-css": "1.0.2",
+    "esbuild": "0.28.2",
+    "htmx.org": "4.0.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12",
+    "wrangler": "4.156.1"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.6",
+    "hono": "4.13.16"
+  }
+}

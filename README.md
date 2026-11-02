@@ -23,7 +23,7 @@ Squirrel does not decide when to buy more. You look at the counts and decide.
 - Export your items to a CSV file, and import items from one.
 - Works on a phone and on a desktop. Add it to your home screen for a full-screen app.
 - A read-only JSON API for dashboards and home automation, for example Home Assistant.
-- One small container. One SQLite file. No internet needed at runtime.
+- Runs in one small container with one SQLite file, or on Cloudflare Workers with D1. No internet is needed at runtime for the container.
 
 ## Security: read this first
 
@@ -32,6 +32,8 @@ Squirrel does not decide when to buy more. You look at the counts and decide.
 > Run it on a trusted home network only.
 >
 > To use it away from home, put it behind a reverse proxy or tunnel that signs people in. For example, use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) with [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/). Do not open the port to the internet.
+>
+> A Worker has a public address as soon as you deploy it. Protect it with Cloudflare Access at once. Read [Cloudflare Workers](#cloudflare-workers).
 
 ## Quick start
 
@@ -67,6 +69,27 @@ docker run -d \
 
 Open <http://localhost:8080>.
 
+### Cloudflare Workers
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andrewmooreio/squirrel)
+
+Click the button. Cloudflare copies the repository to your account and builds it. Wrangler creates the D1 database on the first deploy. Squirrel runs its own migrations on the first request.
+
+> [!WARNING]
+> A Worker is public. Squirrel has no login. Add a [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) policy to the Worker before you use it. Without a policy, anyone who finds the address can change your stock.
+
+To deploy from your own machine instead, run these commands:
+
+```sh
+npm ci
+npx wrangler login
+npm run deploy
+```
+
+Static files come from Workers Static Assets, so they do not use Worker CPU time.
+
+The Workers free plan allows 10 ms of CPU time for each request. The home page fits in that limit for up to about 250 items. A longer list can go over it. The container has no such limit. Paging for long lists is planned.
+
 ### First start
 
 Squirrel starts empty. Before you add an item, open **Manage lists** and create at least one category, one location and one store. Then add your first item.
@@ -97,13 +120,26 @@ Bin bags,9,rolls,Cleaning,Under the stairs,Costco,Black ones
 
 Set these environment variables on the container. All of them are optional.
 
-| Variable           | Default             | Meaning                     |
-| ------------------ | ------------------- | --------------------------- |
-| `SQUIRREL_HOST`    | `0.0.0.0`           | Address to listen on        |
-| `SQUIRREL_PORT`    | `8080`              | Port to listen on           |
-| `SQUIRREL_DB_PATH` | `/data/squirrel.db` | Path of the SQLite database |
+| Variable       | Default                      | Meaning                                  |
+| -------------- | ---------------------------- | ---------------------------------------- |
+| `HOST`         | `0.0.0.0`                    | Address to listen on                     |
+| `PORT`         | `8080`                       | Port to listen on, from 1 to 65535       |
+| `DATABASE_URL` | `sqlite:///data/squirrel.db` | Where Squirrel keeps its data            |
 
-If you change `SQUIRREL_PORT`, change the port mapping too. The container runs as a non-root user (UID 65532), so a folder that you mount at `/data` must be writable by that user.
+An empty value counts as unset. If you change `PORT`, change the port mapping too. The container runs as a non-root user (UID 65532), so a folder that you mount at `/data` must be writable by that user.
+
+The scheme of `DATABASE_URL` selects the database driver. Version 2.0 has one scheme on Node: `sqlite:`. The path follows the two slashes, so `sqlite:///data/squirrel.db` is the file `/data/squirrel.db`. Squirrel makes the folder if it does not exist.
+
+On Cloudflare Workers there are no environment variables for the database. The D1 binding named `DB` selects it.
+
+### Upgrade from 1.x
+
+Version 2.0 is a rewrite. The app, the URLs, the API and the CSV format stay the same. Two things change:
+
+- The image opens your old SQLite file in place. Keep the same `/data` volume. You do not need to export or import.
+- `SQUIRREL_HOST`, `SQUIRREL_PORT` and `SQUIRREL_DB_PATH` are gone. Use `HOST`, `PORT` and `DATABASE_URL`. The defaults are the same, so you only need to change them if you set the old names.
+
+Back up the `/data` volume before you upgrade. Version 2.0 adds a table named `schema_migrations`. Version 1.x ignores it, so you can go back to the old image.
 
 ## Image tags
 
@@ -142,9 +178,11 @@ To restore, stop the container and unpack the archive into the volume.
 
 A [CSV export](#import-and-export) is not a full backup, because it has no history. Back up the `/data` volume for that.
 
+On Cloudflare, export the D1 database: `npx wrangler d1 export squirrel --remote --output squirrel-backup.sql`.
+
 ## Health check
 
-`GET /healthz` returns `200 ok` when the database is reachable. The image already uses it for its Docker health check. You can also point your reverse proxy or monitoring at it.
+`GET /healthz` returns `200 ok` when the database is reachable, and `503` if it is not. The image already uses it for its Docker health check. You can also point your reverse proxy or monitoring at it.
 
 ## JSON API
 
@@ -196,22 +234,25 @@ curl 'http://localhost:8080/api/items?sort=count'
 
 A list field that is blank is `null`. Times are UTC. An empty list is `[]`.
 
-Errors are JSON, for example `{"error":"Not found."}`. An unknown item gives `404`. An id that is not a number gives `400`.
+Errors are JSON, for example `{"error":"Not found."}`. An unknown item gives `404`. An id in the path that is not a number also gives `404`. A bad `category`, `location`, `store` or `on_list` parameter gives `400`.
 
 ## Development
 
-You need Go. The Makefile downloads the Tailwind CLI and `golangci-lint` into `./bin`. You do not need Node.js.
+You need Node.js 26 or later.
 
 ```sh
-make run        # generate templ code, build the CSS, run on :8080 with ./tmp/squirrel.db
-make test       # run all tests
-make lint       # run golangci-lint
-make generate   # run templ generate (commit the result)
-make css        # rebuild the stylesheet
-make build      # build ./bin/squirrel, with the version from git describe
+npm ci
+npm run dev            # build, then run on :8080 with ./tmp/squirrel.db
+npm run dev:worker     # run the Worker locally with Wrangler and a local D1
+npm test               # run every test against both drivers
+npm run typecheck      # run the TypeScript compiler
+npm run lint           # run Biome
+npm run build          # build the static files and the Node bundle into ./dist
 ```
 
-The stack is Go (`net/http`), [templ](https://templ.guide), [HTMX](https://htmx.org), [Tailwind CSS](https://tailwindcss.com) with [Basecoat](https://basecoatui.com), and SQLite through [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite). All assets are embedded in the binary.
+The stack is TypeScript, [Hono](https://hono.dev), server-rendered JSX, [HTMX](https://htmx.org) 4, [Tailwind CSS](https://tailwindcss.com) with [Basecoat](https://basecoatui.com), and SQLite. The core uses only web-standard `Request` and `Response`, so it runs on any host. A small entry module starts it: `src/entry/node.ts` for a container, and `src/entry/worker.ts` for Cloudflare Workers.
+
+The database layer has two parts. A **dialect** holds the SQL text and the migrations for one database family. A **driver** runs that SQL on one runtime. Version 2.0 has one dialect (SQLite) and two drivers: `node-sqlite` for Node, and `d1` for Workers. The core asks a driver for two things only: a query, and an atomic batch of statements. To add a driver, write a module in `src/db/drivers` that implements the `Driver` interface, add its scheme to `src/entry/drivers.ts`, and make it pass `test/conformance.test.ts`.
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org). Releases and version numbers come from them through [release-please](https://github.com/googleapis/release-please).
 
