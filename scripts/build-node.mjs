@@ -6,7 +6,7 @@ await build({
   outdir: "dist/node",
   bundle: true,
   platform: "node",
-  target: "node24",
+  target: "node26",
   format: "esm",
   external: ["node:*"],
   minify: false,

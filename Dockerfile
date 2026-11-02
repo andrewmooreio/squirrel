@@ -2,7 +2,7 @@
 
 # Build the stylesheet and the Node bundle. The output is plain JavaScript, so
 # the build runs once on the build platform for every target architecture.
-FROM --platform=$BUILDPLATFORM node:24-slim AS build
+FROM --platform=$BUILDPLATFORM node:26-slim AS build
 # The release workflow passes the version. The build context has no .git.
 ARG VERSION=dev
 WORKDIR /src
@@ -15,7 +15,7 @@ RUN VERSION=${VERSION} npm run build
 FROM --platform=$BUILDPLATFORM busybox:stable AS data
 RUN mkdir /data && chown 65532:65532 /data
 
-FROM gcr.io/distroless/nodejs24-debian13:nonroot
+FROM gcr.io/distroless/nodejs26-debian13:nonroot
 WORKDIR /app
 COPY --from=build /src/dist/node dist/node
 COPY --from=build /src/dist/assets dist/assets

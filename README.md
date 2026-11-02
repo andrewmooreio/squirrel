@@ -238,7 +238,7 @@ Errors are JSON, for example `{"error":"Not found."}`. An unknown item gives `40
 
 ## Development
 
-You need Node.js 24 or later.
+You need Node.js 26 or later.
 
 ```sh
 npm ci
