@@ -60,6 +60,9 @@ async function migrate(driver: Driver): Promise<void> {
         sql.recordMigration(m.version, new Date().toISOString()),
       ]);
     } catch (err) {
+      // Another isolate may have applied it first. If so, carry on.
+      const now = await run(() => driver.query(sql.appliedMigrations));
+      if (now.some((r) => Number(r.version) === m.version)) continue;
       throw new Error(`migration ${m.name}: ${(driver.mapError(err) as Error).message}`);
     }
   }

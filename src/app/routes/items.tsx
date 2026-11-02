@@ -22,13 +22,15 @@ const itemPath = (id: number) => `/items/${id}`;
 
 export function itemRoutes(app: Hono, d: Deps) {
   /** Loads the three lists and the unit suggestions for the item form. */
-  const withLists = async (form: ItemFormData): Promise<ItemFormData> => ({
-    ...form,
-    units: await d.store.units(),
-    categories: await d.store.lists("categories"),
-    locations: await d.store.lists("locations"),
-    stores: await d.store.lists("stores"),
-  });
+  const withLists = async (form: ItemFormData): Promise<ItemFormData> => {
+    const [units, categories, locations, stores] = await Promise.all([
+      d.store.units(),
+      d.store.lists("categories"),
+      d.store.lists("locations"),
+      d.store.lists("stores"),
+    ]);
+    return { ...form, units, categories, locations, stores };
+  };
 
   app.get("/items/new", async (c) => {
     const form = await withLists({ ...emptyForm(), unit: DEFAULT_UNIT });

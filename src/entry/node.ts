@@ -12,6 +12,13 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 async function main() {
   const config = loadConfig();
+  for (const old of ["SQUIRREL_HOST", "SQUIRREL_PORT", "SQUIRREL_DB_PATH"]) {
+    if (process.env[old]) {
+      console.warn(
+        `squirrel: ${old} is no longer used. Use HOST, PORT and DATABASE_URL. Read the README.`,
+      );
+    }
+  }
   const driver = await selectDriver(config.databaseUrl, "node");
   await ensureMigrated(driver);
 

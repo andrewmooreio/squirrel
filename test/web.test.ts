@@ -990,3 +990,27 @@ describe("export and import", () => {
     expect((await b.get("/export.csv")).body).toBe(first);
   });
 });
+
+describe("review fixes", () => {
+  it("answers a cross-site change to the API with JSON", async () => {
+    const a = await newApp();
+    const r = await a.post("/api/items", undefined, { "Sec-Fetch-Site": "cross-site" });
+    wantStatus(r, 403);
+    expect(r.headers.get("Content-Type")).toBe("application/json");
+    expect(JSON.parse(r.body)).toEqual({ error: "Request refused." });
+  });
+
+  it("compares import names the way the database does (ASCII case only)", async () => {
+    const a = await newApp();
+    const file =
+      "name,category,location,store\n" +
+      "Bean,ä,B,C\n" + // creates the category ä
+      "Pea,Ä,B,C\n" + // Ä is a different category for SQLite NOCASE
+      "éclair,ä,B,C\n" +
+      "Éclair,ä,B,C\n"; // a different name for SQLite NOCASE
+    const r = await a.upload("/import", "file", "items.csv", file);
+    contains(r, "Added 4 items.");
+    const items = await a.store.listItems();
+    expect(items.every((i) => i.categoryName !== "")).toBe(true);
+  });
+});

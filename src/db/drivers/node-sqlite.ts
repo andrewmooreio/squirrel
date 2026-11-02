@@ -8,7 +8,6 @@ import type { Driver, Param, Row, Statement, StatementResult } from "../types";
 // SQLite extended result codes.
 const CONSTRAINT_CHECK = 275;
 const CONSTRAINT_UNIQUE = 2067;
-const CONSTRAINT_PRIMARYKEY = 1555;
 
 /** Opens the SQLite file at path. Use ":memory:" for a throwaway database. */
 export function nodeSqliteDriver(path: string): Driver {
@@ -49,7 +48,7 @@ export function nodeSqliteDriver(path: string): Driver {
     },
     mapError(err) {
       const e = err as { errcode?: number; message?: string };
-      if (e.errcode === CONSTRAINT_UNIQUE || e.errcode === CONSTRAINT_PRIMARYKEY) {
+      if (e.errcode === CONSTRAINT_UNIQUE) {
         return new DuplicateError();
       }
       if (e.errcode === CONSTRAINT_CHECK && /count/.test(e.message ?? "")) {

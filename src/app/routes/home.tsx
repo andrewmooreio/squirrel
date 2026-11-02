@@ -36,10 +36,12 @@ export function homeRoutes(app: Hono, d: Deps) {
       sort: c.req.query("sort") ?? "",
     };
 
-    const cats = await d.store.lists("categories");
-    const locs = await d.store.lists("locations");
-    const stores = await d.store.lists("stores");
-    const hasUncategorised = await d.store.hasUncategorised();
+    const [cats, locs, stores, hasUncategorised] = await Promise.all([
+      d.store.lists("categories"),
+      d.store.lists("locations"),
+      d.store.lists("stores"),
+      d.store.hasUncategorised(),
+    ]);
 
     // While a search is active the view acts as the All tab.
     let active = v.q ? "" : v.tab;

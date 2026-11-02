@@ -60,6 +60,9 @@ function crossOrigin(d: Deps) {
       }
     }
     if (allowed) return next();
+    if (new URL(c.req.url).pathname.startsWith("/api/")) {
+      return apiError(c, 403, "Request refused.");
+    }
     return message(
       c,
       d,
@@ -81,14 +84,19 @@ export function createApp(options: AppOptions): Hono {
   app.get("/healthz", async (c) => {
     c.header("Content-Type", "text/plain; charset=utf-8");
     c.header("Cache-Control", "no-store");
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         store.ping(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000)),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error("timeout")), 2000);
+        }),
       ]);
       return c.body("ok\n");
     } catch {
       return c.body("database unreachable\n", 503);
+    } finally {
+      clearTimeout(timer);
     }
   });
 

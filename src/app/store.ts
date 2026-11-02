@@ -98,6 +98,9 @@ const toItem = (r: Row): Item => ({
   updatedAt: String(r.updated_at),
 });
 
+/** Folds ASCII letters only. This is how SQLite NOCASE compares names. */
+const asciiLower = (s: string) => s.replace(/[A-Z]/g, (c) => c.toLowerCase());
+
 const now = () => new Date().toISOString();
 
 export type Store = ReturnType<typeof createStore>;
@@ -150,11 +153,14 @@ export function createStore(driver: Driver) {
       ["locations", "location", input.locationId, "a location"],
       ["stores", "store", input.storeId, "a store"],
     ];
-    for (const [kind, field, id, label] of refs) {
-      if (!id || (await query(sql.listValueExists(kind, id))).length === 0) {
-        errors[field] = `Choose ${label}.`;
-      }
-    }
+    const found = await Promise.all(
+      refs.map(
+        async ([kind, , id]) => id !== 0 && (await query(sql.listValueExists(kind, id))).length > 0,
+      ),
+    );
+    refs.forEach(([, field, , label], i) => {
+      if (!found[i]) errors[field] = `Choose ${label}.`;
+    });
     if (Object.keys(errors).length > 0) throw new ValidationError(errors);
     return {
       fields: {
@@ -174,8 +180,8 @@ export function createStore(driver: Driver) {
   };
 
   const listIds = async (kind: ListKind): Promise<Map<string, number>> => {
-    const rows = await query(`SELECT id, name FROM ${kind}`);
-    return new Map(rows.map((r) => [String(r.name).toLowerCase(), Number(r.id)]));
+    const rows = await query(sql.listNames(kind));
+    return new Map(rows.map((r) => [asciiLower(String(r.name)), Number(r.id)]));
   };
 
   return {
@@ -272,12 +278,13 @@ export function createStore(driver: Driver) {
      */
     async importItems(rows: ImportRow[]): Promise<ImportResult> {
       const existing = new Set(
-        (await query(sql.existingItemNames)).map((r) => String(r.name).toLowerCase()),
+        (await query(sql.existingItemNames)).map((r) => asciiLower(String(r.name))),
       );
+      const [categories, locations, stores] = await Promise.all(LIST_KINDS.map(listIds));
       const lists: Record<ListKind, Map<string, number>> = {
-        categories: await listIds("categories"),
-        locations: await listIds("locations"),
-        stores: await listIds("stores"),
+        categories: categories ?? new Map(),
+        locations: locations ?? new Map(),
+        stores: stores ?? new Map(),
       };
 
       const skipped: ImportSkip[] = [];
@@ -302,7 +309,7 @@ export function createStore(driver: Driver) {
           skipped.push({ line: row.line, name: row.name.trim(), reason: clean });
           continue;
         }
-        const key = clean.name.toLowerCase();
+        const key = asciiLower(clean.name);
         if (existing.has(key)) {
           skipped.push({ line: row.line, name: clean.name, reason: SKIP_EXISTS });
           continue;
@@ -315,7 +322,7 @@ export function createStore(driver: Driver) {
           ["stores", clean.store],
         ];
         for (const [kind, value] of refs) {
-          const k = value.toLowerCase();
+          const k = asciiLower(value);
           if (!lists[kind].has(k) && !newValues[kind].has(k)) newValues[kind].set(k, value);
         }
       }

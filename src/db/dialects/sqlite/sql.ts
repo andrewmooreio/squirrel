@@ -179,13 +179,6 @@ export const sqliteSql = {
             GROUP BY l.id
             ORDER BY l.name COLLATE NOCASE, l.id`;
   },
-  getListValue(kind: ListKind, id: number): Statement {
-    return {
-      sql: `SELECT l.id, l.name, (SELECT count(*) FROM items WHERE ${COLUMN[kind]} = l.id) AS uses
-            FROM ${kind} l WHERE l.id = ?`,
-      params: [id],
-    };
-  },
   listValueExists(kind: ListKind, id: number): Statement {
     return { sql: `SELECT id FROM ${kind} WHERE id = ?`, params: [id] };
   },
@@ -204,7 +197,7 @@ export const sqliteSql = {
   // D1 limit of queries for each request.
   existingItemNames: "SELECT name FROM items",
   listNames(kind: ListKind): string {
-    return `SELECT name FROM ${kind}`;
+    return `SELECT id, name FROM ${kind}`;
   },
   importListValues(kind: ListKind, namesJson: string): Statement {
     return {
