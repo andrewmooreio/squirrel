@@ -13,7 +13,7 @@
     "build:static": "node scripts/build-static.mjs",
     "build:node": "node scripts/build-node.mjs",
     "start": "node dist/node/server.mjs",
-    "dev": "npm run build && node dist/node/server.mjs",
+    "dev": "npm run build && DATABASE_URL=${DATABASE_URL:-sqlite://./tmp/squirrel.db} node dist/node/server.mjs",
     "dev:worker": "npm run build:static && wrangler dev",
     "deploy": "npm run build:static && wrangler deploy",
     "typecheck": "tsc --noEmit",
