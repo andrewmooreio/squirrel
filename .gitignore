@@ -11,3 +11,9 @@
 *.db-wal
 
 .DS_Store
+
+# Node and build output
+node_modules/
+dist/
+src/generated/
+.wrangler/

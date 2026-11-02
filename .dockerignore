@@ -1,7 +1,11 @@
 .git
-bin
+node_modules
+dist
+src/generated
+.wrangler
+spike
 tmp
+docs
 *.db
 *.db-shm
 *.db-wal
-internal/web/static/app.css

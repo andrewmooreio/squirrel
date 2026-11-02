@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "squirrel",
+  "main": "src/entry/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "dist/assets"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "squirrel"
+    }
+  ]
+}
