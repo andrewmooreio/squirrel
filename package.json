@@ -25,21 +25,21 @@
     "test:workers": "vitest run --project workers"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
-    "@cloudflare/vitest-plugin": "1.4.12",
-    "@cloudflare/workers-types": "5.20261102.1",
-    "@tailwindcss/cli": "4.3.3",
+    "@biomejs/biome": "2.6.7",
+    "@cloudflare/vitest-plugin": "1.8.1",
+    "@cloudflare/workers-types": "5.20261112.1",
+    "@tailwindcss/cli": "4.3.5",
     "@types/node": "26.6.6",
     "basecoat-css": "1.1.0",
     "esbuild": "0.28.2",
     "htmx.org": "4.0.1",
-    "tailwindcss": "4.3.3",
+    "tailwindcss": "4.3.5",
     "typescript": "7.0.2",
-    "vitest": "5.0.5",
-    "wrangler": "4.156.1"
+    "vitest": "5.1.0",
+    "wrangler": "4.161.0"
   },
   "dependencies": {
-    "@hono/node-server": "2.1.6",
-    "hono": "4.13.16"
+    "@hono/node-server": "2.1.8",
+    "hono": "4.13.18"
   }
 }
